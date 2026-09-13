@@ -64,6 +64,7 @@ const STRINGS = {
     levels: { green: 'Verde', orange: 'Naranja', red: 'Rojo' },
     typeLabels: { EQ: 'Terremoto', TC: 'Ciclón', FL: 'Inundación', VO: 'Volcán', WF: 'Incendio', DR: 'Sequía' },
     loading: 'Cargando eventos…',
+    refreshAria: 'Actualizar ahora',
     helpAria: 'Ayuda',
     closeAria: 'Cerrar',
     langAria: 'Cambiar idioma',
@@ -110,6 +111,7 @@ const STRINGS = {
     levels: { green: 'Green', orange: 'Orange', red: 'Red' },
     typeLabels: { EQ: 'Earthquake', TC: 'Cyclone', FL: 'Flood', VO: 'Volcano', WF: 'Wildfire', DR: 'Drought' },
     loading: 'Loading events…',
+    refreshAria: 'Refresh now',
     helpAria: 'Help',
     closeAria: 'Close',
     langAria: 'Switch language',
@@ -705,10 +707,34 @@ document.querySelectorAll('.alert-btn').forEach((btn) => {
   });
 });
 
+// ---- Manual refresh ----
+// A normal browser tab can always be reloaded (or pull-to-refreshed) to force an update;
+// an installed PWA has no browser chrome and, especially on iOS, no reliable
+// pull-to-refresh gesture either — so this button is the only way to force one there.
+let refreshTimer = null;
+function scheduleAutoRefresh() {
+  if (refreshTimer) clearInterval(refreshTimer);
+  refreshTimer = setInterval(fetchEvents, REFRESH_SECONDS * 1000);
+}
+
+document.getElementById('refresh-btn').addEventListener('click', async (e) => {
+  const btn = e.currentTarget;
+  if (btn.disabled) return; // ignore rapid re-clicks while one is already in flight
+  btn.disabled = true;
+  btn.classList.add('spinning');
+  try {
+    await fetchEvents();
+  } finally {
+    btn.disabled = false;
+    btn.classList.remove('spinning');
+  }
+  scheduleAutoRefresh(); // push the next automatic refresh back out from this manual one
+});
+
 // ---- Init ----
 applyLanguage(lang);
 fetchEvents();
-setInterval(fetchEvents, REFRESH_SECONDS * 1000);
+scheduleAutoRefresh();
 
 // PWA shell caching — see sw.js for what it does and, just as importantly, doesn't cache
 // (never the GDACS feed itself). Registration failing (e.g. served over plain HTTP in some
