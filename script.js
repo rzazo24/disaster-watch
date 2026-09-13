@@ -80,7 +80,8 @@ const STRINGS = {
       usageHeading: 'Uso',
       usage: [
         'Los botones de la barra superior filtran por tipo y por nivel — clic para activar o desactivar.',
-        'Clic en un marcador abre el detalle: país, fechas, severidad, población estimada (solo disponible para terremotos) y enlace al informe oficial de GDACS.',
+        'Clic en un marcador abre el detalle: país, fechas, última actualización, fuente de monitorización, severidad, población estimada (solo terremotos), puntuación de alerta e impacto reportado cuando GDACS lo tiene, además del enlace al informe oficial.',
+        'El mismo clic dibuja, si existe, la forma real del evento en el mapa — área de una inundación, trayectoria y cono de un ciclón — en vez de solo el punto del marcador.',
         'El mapa se actualiza solo cada 5 minutos.',
       ],
       dataHeading: 'Datos',
@@ -125,7 +126,8 @@ const STRINGS = {
       usageHeading: 'Usage',
       usage: [
         'The buttons in the top bar filter by type and by level — click to toggle.',
-        'Clicking a marker opens its detail: country, dates, severity, estimated population (only available for earthquakes), and a link to the official GDACS report.',
+        'Clicking a marker opens its detail: country, dates, last update, monitoring source, severity, estimated population (earthquakes only), alert score, and reported impact when GDACS has any, plus a link to the official report.',
+        "That same click also draws the event's real footprint on the map when available — a flood's extent, a cyclone's track and cone — instead of just the marker's point.",
         'The map refreshes automatically every 5 minutes.',
       ],
       dataHeading: 'Data',
