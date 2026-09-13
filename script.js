@@ -13,6 +13,31 @@ const EVENT_TYPES = ['EQ', 'TC', 'FL', 'VO', 'WF', 'DR'];
 const REFRESH_SECONDS = 300; // events don't change second to second — 5 min is plenty
 const MAX_PAGES = 5; // hard safety cap (500 events) in case that boundary is ever never reached
 
+// ---- Supplementary Spain earthquake layer (EMSC) ----
+// GDACS is deliberately global and only reports earthquakes with real potential
+// international-assistance impact — in practice almost always M5+. Spain has frequent
+// smaller seismicity GDACS never surfaces at all. EMSC's FDSN event API
+// (seismicportal.eu) is CORS-open, needs no key, and aggregates national networks
+// including Spain's own IGN — confirmed live (its `auth` field reads "IGN" for Spanish
+// events). Two alternatives were investigated and rejected: IGN's own service is
+// WMS-only (raster map images, no vector/JSON feed to parse into markers); AEMET's
+// OpenData API needs a registered API key and returns tar.gz-compressed CAP XML rather
+// than JSON. Neither fits this app's no-backend, no-build-step model as cleanly as
+// EMSC already does.
+const EMSC_BASE = 'https://www.seismicportal.eu/fdsnws/event/1/query';
+// Two disjoint boxes rather than one: the Canary Islands sit ~2000km from the peninsula,
+// so a single box spanning both would also sweep in most of the North Atlantic.
+const EMSC_REGIONS = [
+  { minlat: 35.8, maxlat: 43.9, minlon: -9.5, maxlon: 4.4 },    // Peninsula + Baleares
+  { minlat: 27.0, maxlat: 29.5, minlon: -18.5, maxlon: -13.0 }, // Canarias
+];
+const EMSC_DAYS = 7; // a rolling window, not "current" in GDACS's sense — a quake is a point in time, not an ongoing state
+// GDACS's own earthquake alerts never fire below roughly M5 in practice. Capping this
+// layer well under that leaves a safety margin so the same physical earthquake can't
+// end up rendered twice, once from each source — not a perfect cross-match, but a
+// simple heuristic that's right in every case actually observed.
+const EMSC_MAX_MAG = 4.5;
+
 function buildUrl(types, levels, pageNumber) {
   const params = new URLSearchParams({
     eventlist: types.join(';'),
@@ -52,6 +77,36 @@ async function fetchAllFeatures() {
   return all;
 }
 
+function buildEmscUrl(region, startIso) {
+  const params = new URLSearchParams({
+    format: 'json',
+    start: startIso,
+    maxmag: EMSC_MAX_MAG,
+    orderby: 'time',
+    minlat: region.minlat, maxlat: region.maxlat,
+    minlon: region.minlon, maxlon: region.maxlon,
+  });
+  return `${EMSC_BASE}?${params.toString()}`;
+}
+
+async function fetchLocalQuakeFeatures() {
+  const startIso = new Date(Date.now() - EMSC_DAYS * 86400000).toISOString().slice(0, 19);
+  const results = await Promise.allSettled(
+    EMSC_REGIONS.map((region) =>
+      fetch(buildEmscUrl(region, startIso)).then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+    )
+  );
+  let all = [];
+  for (const result of results) {
+    if (result.status === 'fulfilled') all = all.concat(result.value.features || []);
+    else console.error('EMSC region fetch failed — showing what the other region returned.', result.reason);
+  }
+  return all;
+}
+
 // ---- i18n ----
 // GDACS's own fields (event name, country, severity text) are always in English regardless
 // of UI language — there's no localized variant to request. Only this app's own chrome
@@ -60,7 +115,7 @@ const STRINGS = {
   es: {
     title: 'DISASTER WATCH',
     pageTitle: 'Disaster Watch — Alertas globales GDACS',
-    filters: { all: 'Todos', EQ: 'Terremotos', TC: 'Ciclones', FL: 'Inundaciones', VO: 'Volcanes', DR: 'Sequías', WF: 'Incendios' },
+    filters: { all: 'Todos', EQ: 'Terremotos', TC: 'Ciclones', FL: 'Inundaciones', VO: 'Volcanes', DR: 'Sequías', WF: 'Incendios', localQuakes: 'Sismos locales' },
     levels: { green: 'Verde', orange: 'Naranja', red: 'Rojo' },
     typeLabels: { EQ: 'Terremoto', TC: 'Ciclón', FL: 'Inundación', VO: 'Volcán', WF: 'Incendio', DR: 'Sequía' },
     loading: 'Cargando eventos…',
@@ -88,9 +143,10 @@ const STRINGS = {
         'El botón ES/EN junto al título cambia el idioma de toda la interfaz.',
         'El botón ⌖ junto al zoom centra el mapa en tu ubicación actual (requiere permiso de localización del navegador).',
         'Los marcadores cercanos entre sí se agrupan en un círculo numerado, coloreado por el nivel de alerta más grave del grupo — haz clic o zoom para separarlos.',
+        'El botón "Sismos locales" añade terremotos menores en España (magnitud hasta 4,5) que GDACS no recoge — desactivado por defecto, con su propio color morado ya que no tienen nivel de alerta de GDACS.',
       ],
       dataHeading: 'Datos',
-      dataText: (link) => `De ${link} (ONU + Comisión Europea), citado tal y como exigen sus términos de uso: "Global Disaster Awareness and Coordination System, GDACS". La API limita cada consulta a 100 eventos, así que en días de mucha actividad alguno puede quedar fuera. Tiles del mapa de Esri, HERE, Garmin y colaboradores de OpenStreetMap.`,
+      dataText: (link) => `De ${link} (ONU + Comisión Europea), citado tal y como exigen sus términos de uso: "Global Disaster Awareness and Coordination System, GDACS". La API limita cada consulta a 100 eventos, así que en días de mucha actividad alguno puede quedar fuera. Tiles del mapa de Esri, HERE, Garmin y colaboradores de OpenStreetMap. Los sismos locales (botón "Sismos locales") vienen de EMSC (Euro-Mediterranean Seismological Centre), que agrega datos de redes nacionales como el IGN.`,
     },
     panel: {
       type: 'Tipo', country: 'País', from: 'Desde', to: 'Hasta', severity: 'Severidad',
@@ -99,6 +155,9 @@ const STRINGS = {
       popUnavailable: 'No disponible para este tipo de evento', dash: '—', event: 'Evento',
       source: 'Fuente', updated: 'Actualizado', impact: 'Impacto reportado',
       moreImpact: (n) => `+ ${n} más`,
+      location: 'Ubicación', date: 'Fecha', magnitude: 'Magnitud', depth: 'Profundidad',
+      localQuakeTitle: 'Sismo local', localQuakeLink: 'Ver ficha en EMSC →',
+      localQuakeNote: 'Dato de EMSC, no de GDACS — sin nivel de alerta internacional asociado.',
     },
     errors: {
       http: (status) => `Error al obtener datos de GDACS (HTTP ${status}).`,
@@ -113,7 +172,7 @@ const STRINGS = {
   en: {
     title: 'DISASTER WATCH',
     pageTitle: 'Disaster Watch — Global GDACS Alerts',
-    filters: { all: 'All', EQ: 'Earthquakes', TC: 'Cyclones', FL: 'Floods', VO: 'Volcanoes', DR: 'Droughts', WF: 'Wildfires' },
+    filters: { all: 'All', EQ: 'Earthquakes', TC: 'Cyclones', FL: 'Floods', VO: 'Volcanoes', DR: 'Droughts', WF: 'Wildfires', localQuakes: 'Local quakes' },
     levels: { green: 'Green', orange: 'Orange', red: 'Red' },
     typeLabels: { EQ: 'Earthquake', TC: 'Cyclone', FL: 'Flood', VO: 'Volcano', WF: 'Wildfire', DR: 'Drought' },
     loading: 'Loading events…',
@@ -141,9 +200,10 @@ const STRINGS = {
         'The ES/EN button next to the title switches the whole interface\'s language.',
         'The ⌖ button next to zoom centers the map on your current location (needs the browser\'s location permission).',
         'Markers close to each other group into a numbered circle, colored by the worst alert level in the group — click it or zoom in to split them apart.',
+        'The "Local quakes" button adds minor earthquakes in Spain (up to magnitude 4.5) that GDACS never tracks — off by default, shown in their own purple color since they have no GDACS alert level.',
       ],
       dataHeading: 'Data',
-      dataText: (link) => `From ${link} (UN + European Commission), cited as its terms of use require: "Global Disaster Awareness and Coordination System, GDACS". The API caps each query at 100 events, so on high-activity days some may be left out. Map tiles by Esri, HERE, Garmin and OpenStreetMap contributors.`,
+      dataText: (link) => `From ${link} (UN + European Commission), cited as its terms of use require: "Global Disaster Awareness and Coordination System, GDACS". The API caps each query at 100 events, so on high-activity days some may be left out. Map tiles by Esri, HERE, Garmin and OpenStreetMap contributors. Local quakes ("Local quakes" button) come from EMSC (Euro-Mediterranean Seismological Centre), which aggregates national networks such as Spain's IGN.`,
     },
     panel: {
       type: 'Type', country: 'Country', from: 'From', to: 'To', severity: 'Severity',
@@ -152,6 +212,9 @@ const STRINGS = {
       popUnavailable: 'Not available for this event type', dash: '—', event: 'Event',
       source: 'Source', updated: 'Updated', impact: 'Reported impact',
       moreImpact: (n) => `+ ${n} more`,
+      location: 'Location', date: 'Date', magnitude: 'Magnitude', depth: 'Depth',
+      localQuakeTitle: 'Local earthquake', localQuakeLink: 'View EMSC record →',
+      localQuakeNote: 'EMSC data, not GDACS — no international alert level applies.',
     },
     errors: {
       http: (status) => `Error fetching data from GDACS (HTTP ${status}).`,
@@ -192,6 +255,14 @@ let activeTypes = new Set(EVENT_TYPES);
 let activeLevels = new Set(['green', 'orange', 'red']);
 const markers = new Map(); // eventid-episodeid -> { marker, event }
 let allEvents = []; // last fetched, unfiltered — the source of truth for re-rendering on filter changes
+let localQuakes = []; // EMSC supplementary layer — separate from allEvents, merged in only when shown
+let showLocalQuakes = false; // opt-in and off by default: supplementary data, not part of GDACS's own feed
+
+// What renderEvents() should actually draw — folds in the EMSC layer only when the
+// viewer has switched it on, so every render call site doesn't need to know about it.
+function currentEventSet() {
+  return showLocalQuakes ? allEvents.concat(localQuakes) : allEvents;
+}
 
 // ---- Map setup ----
 // zoomControl is moved to bottom-left so it doesn't sit under the fixed topbar's title.
@@ -307,6 +378,18 @@ function clusterIcon(cluster) {
     iconSize: [32, 32],
   });
 }
+
+// Local (EMSC) quakes get their own cluster group, kept separate from markerCluster: mixing
+// them in would let a cluster's badge color imply GDACS's own red/orange/green severity
+// scale for events that never went through that assessment at all.
+const localQuakeCluster = L.markerClusterGroup({
+  showCoverageOnHover: false,
+  iconCreateFunction: (cluster) => L.divIcon({
+    className: '',
+    html: `<div class="disaster-cluster local-quake">${cluster.getChildCount()}</div>`,
+    iconSize: [32, 32],
+  }),
+}).addTo(map);
 
 // Attribution is a plain element (#map-attribution, styled in style.css) instead of
 // Leaflet's own corner control — Leaflet's own positioning kept producing safe-area
@@ -468,7 +551,42 @@ function formatCountry(event, l) {
 
 function markerHtml(event) {
   const meta = TYPE_META[event.type] || { icon: '●' };
-  return `<div class="disaster-marker level-${event.level}">${meta.icon}</div>`;
+  // Local (EMSC) quakes get a fixed "local-quake" class instead of a level-derived one —
+  // event.level is null for them, since GDACS's red/orange/green scale doesn't apply.
+  const colorClass = event.isLocalQuake ? 'local-quake' : `level-${event.level}`;
+  return `<div class="disaster-marker ${colorClass}">${meta.icon}</div>`;
+}
+
+// EMSC's flynn_region arrives all-caps ("SPAIN", "STRAIT OF GIBRALTAR") — a light
+// title-case pass for readability, not a translation (same free-text-stays-as-is
+// reasoning as event names/severity elsewhere in this app).
+function titleCase(str) {
+  return str.toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+// EMSC (Euro-Mediterranean Seismological Centre) aggregates near-real-time earthquake
+// data from national networks — its `auth` field names which one picked up a given
+// event (e.g. "IGN" for many Spanish quakes), surfaced here in the same `source` slot
+// GDACS's own events use for their monitoring agency (NEIC, NOAA, GLOFAS, ...).
+function parseLocalQuakeFeature(feature) {
+  const p = feature.properties || {};
+  const coords = feature.geometry && feature.geometry.coordinates;
+  if (!coords || p.mag == null) return null;
+  return {
+    id: 'emsc-' + (p.unid || feature.id),
+    type: 'EQ',
+    isLocalQuake: true,
+    level: null, // no GDACS alert scale applies to this source
+    region: p.flynn_region ? titleCase(p.flynn_region) : null,
+    time: p.time,
+    mag: p.mag,
+    magType: p.magtype,
+    depth: p.depth,
+    source: p.auth,
+    reportUrl: p.source_id ? `https://www.emsc-csem.org/Earthquake/earthquake.php?id=${p.source_id}` : null,
+    lon: coords[0],
+    lat: coords[1],
+  };
 }
 
 function escapeHtml(str) {
@@ -586,7 +704,40 @@ function showEventGeometry(event) {
 
 let currentPanelEvent = null; // re-rendered in the new language on toggle, if its panel is open
 
+// Local (EMSC) quakes have a much smaller, different field set than a GDACS event (a
+// single instant instead of an episode with from/to dates, magnitude instead of a
+// severity/score/population trio, no Sendai impact reports, no footprint geometry to
+// fetch) — rendered as its own simple panel rather than forcing them through
+// showPanel()'s GDACS-shaped render() closure with most rows blank.
+function showLocalQuakePanel(event) {
+  currentPanelEvent = event;
+  const t = STRINGS[lang];
+  const panel = document.getElementById('panel');
+  const content = document.getElementById('panel-content');
+  const rows = [
+    [t.panel.type, TYPE_META.EQ.label],
+    [t.panel.location, escapeHtml(event.region || t.panel.dash)],
+    [t.panel.date, event.time ? new Date(event.time).toLocaleString(t.locale) : t.panel.dash],
+    [t.panel.magnitude, event.mag != null ? `${event.mag.toFixed(1)} ${(event.magType || '').toUpperCase()}`.trim() : t.panel.dash],
+    [t.panel.depth, event.depth != null ? `${event.depth} km` : t.panel.dash],
+    [t.panel.source, escapeHtml(event.source || 'EMSC')],
+  ];
+  clearGeometryLayer();
+  document.getElementById('help-panel').classList.add('hidden');
+  panel.dataset.eventId = event.id;
+  content.innerHTML = `
+    <p class="panel-title">${t.panel.localQuakeTitle}</p>
+    <span class="panel-badge local-quake">${t.filters.localQuakes}</span>
+    ${rows.map(([k, v]) => `<div class="panel-row"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('')}
+    <p class="panel-note">${t.panel.localQuakeNote}</p>
+    ${event.reportUrl ? `<a class="panel-link" href="${escapeHtml(event.reportUrl)}" target="_blank" rel="noopener">${t.panel.localQuakeLink}</a>` : ''}
+  `;
+  panel.classList.remove('hidden');
+}
+
 function showPanel(event) {
+  if (event.isLocalQuake) { showLocalQuakePanel(event); return; }
+
   currentPanelEvent = event;
   const t = STRINGS[lang];
   const meta = TYPE_META[event.type] || { label: event.type || t.panel.event };
@@ -738,10 +889,15 @@ function renderEvents(events) {
 
   events.forEach((event) => {
     if (!event.type || !activeTypes.has(event.type)) return;
-    if (!activeLevels.has(event.level)) return;
+    // The level filter only means something for GDACS's own red/orange/green scale — local
+    // (EMSC) quakes carry level: null and bypass it entirely, gated only by the EQ type
+    // filter and the separate "Sismos locales" toggle (which controls whether they're in
+    // `events` at all — see currentEventSet()).
+    if (event.level && !activeLevels.has(event.level)) return;
 
     seen.add(event.id);
     const icon = L.divIcon({ className: '', html: markerHtml(event), iconSize: [22, 22], iconAnchor: [11, 11] });
+    const cluster = event.isLocalQuake ? localQuakeCluster : markerCluster;
 
     if (markers.has(event.id)) {
       markers.get(event.id).marker.setLatLng([event.lat, event.lon]);
@@ -749,14 +905,14 @@ function renderEvents(events) {
       const marker = L.marker([event.lat, event.lon], { icon });
       marker.eventLevel = event.level; // read by clusterIcon() to color the cluster badge
       marker.on('click', () => showPanel(event));
-      markerCluster.addLayer(marker);
+      cluster.addLayer(marker);
       markers.set(event.id, { marker, event });
     }
   });
 
   for (const [id, entry] of markers.entries()) {
     if (!seen.has(id)) {
-      markerCluster.removeLayer(entry.marker);
+      (entry.event.isLocalQuake ? localQuakeCluster : markerCluster).removeLayer(entry.marker);
       markers.delete(id);
     }
   }
@@ -767,7 +923,7 @@ async function fetchEvents() {
   try {
     const features = await fetchAllFeatures();
     allEvents = features.map(parseFeature).filter(Boolean);
-    renderEvents(allEvents);
+    renderEvents(currentEventSet());
     hideError();
   } catch (err) {
     // A TypeError from fetch() with no other detail is the classic CORS-block signature in browsers;
@@ -777,6 +933,20 @@ async function fetchEvents() {
   } finally {
     setLoading(false);
   }
+}
+
+// This is a supplementary, opt-in layer on top of GDACS's own feed — a failure here
+// shouldn't surface an error banner or block anything GDACS-related, just log and leave
+// whatever was already shown (possibly nothing, if this is the very first fetch).
+async function fetchLocalQuakes() {
+  if (!showLocalQuakes) return; // nobody's viewing it — don't spend the round trip
+  try {
+    const features = await fetchLocalQuakeFeatures();
+    localQuakes = features.map(parseLocalQuakeFeature).filter(Boolean);
+  } catch (err) {
+    console.error('EMSC fetch failed', err);
+  }
+  renderEvents(currentEventSet());
 }
 
 // ---- Filter buttons ----
@@ -792,7 +962,7 @@ document.querySelectorAll('.filter-btn').forEach((btn) => {
       if (btn.classList.contains('active')) activeTypes.add(type);
       else activeTypes.delete(type);
     }
-    renderEvents(allEvents);
+    renderEvents(currentEventSet());
   });
 });
 
@@ -802,8 +972,18 @@ document.querySelectorAll('.alert-btn').forEach((btn) => {
     btn.classList.toggle('active');
     if (btn.classList.contains('active')) activeLevels.add(level);
     else activeLevels.delete(level);
-    renderEvents(allEvents);
+    renderEvents(currentEventSet());
   });
+});
+
+// Off by default: supplementary, lower-severity data that would otherwise recreate the
+// exact clutter clustering was added to fix. Fetched lazily on first enable rather than
+// alongside every GDACS refresh, so nobody pays for a round trip they never asked to see.
+document.getElementById('local-quake-toggle').addEventListener('click', (e) => {
+  showLocalQuakes = !showLocalQuakes;
+  e.currentTarget.classList.toggle('active', showLocalQuakes);
+  if (showLocalQuakes) fetchLocalQuakes();
+  else renderEvents(currentEventSet()); // no fetch needed to hide — just re-render without them
 });
 
 // ---- Manual refresh ----
@@ -813,7 +993,9 @@ document.querySelectorAll('.alert-btn').forEach((btn) => {
 let refreshTimer = null;
 function scheduleAutoRefresh() {
   if (refreshTimer) clearInterval(refreshTimer);
-  refreshTimer = setInterval(fetchEvents, REFRESH_SECONDS * 1000);
+  // fetchLocalQuakes() no-ops on its own when the layer is off, so this doesn't need its
+  // own on/off branching here.
+  refreshTimer = setInterval(() => { fetchEvents(); fetchLocalQuakes(); }, REFRESH_SECONDS * 1000);
 }
 
 document.getElementById('refresh-btn').addEventListener('click', async (e) => {
@@ -822,7 +1004,7 @@ document.getElementById('refresh-btn').addEventListener('click', async (e) => {
   btn.disabled = true;
   btn.classList.add('spinning');
   try {
-    await fetchEvents();
+    await Promise.all([fetchEvents(), fetchLocalQuakes()]);
   } finally {
     btn.disabled = false;
     btn.classList.remove('spinning');

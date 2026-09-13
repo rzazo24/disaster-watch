@@ -8,6 +8,9 @@
   --green: #3ef27a;
   --orange: #ffb347;
   --red: #ff5d5d;
+  /* Local (EMSC) earthquakes deliberately don't use green/orange/red — that scale is
+     GDACS's own impact assessment, which this supplementary layer never went through. */
+  --local: #a78bfa;
   --font: 'IBM Plex Mono', monospace;
 }
 
@@ -104,13 +107,13 @@ html, body {
   letter-spacing: 0.5px;
 }
 
-.filters, .alert-filters {
+.filters, .alert-filters, .extra-filters {
   display: flex;
   gap: 6px;
   flex-wrap: wrap;
 }
 
-.filter-btn, .alert-btn {
+.filter-btn, .alert-btn, .local-quake-btn {
   font-family: var(--font);
   font-size: 11px;
   letter-spacing: 0.5px;
@@ -123,7 +126,7 @@ html, body {
   transition: all 0.15s ease;
 }
 
-.filter-btn:hover, .alert-btn:hover {
+.filter-btn:hover, .alert-btn:hover, .local-quake-btn:hover {
   border-color: var(--accent);
   color: var(--text);
 }
@@ -138,6 +141,8 @@ html, body {
 .alert-btn[data-level="green"].active { background: var(--green); color: #06170a; border-color: var(--green); }
 .alert-btn[data-level="orange"].active { background: var(--orange); color: #2a1600; border-color: var(--orange); }
 .alert-btn[data-level="red"].active { background: var(--red); color: #2a0000; border-color: var(--red); }
+
+.local-quake-btn.active { background: var(--local); color: #1a0a2e; border-color: var(--local); }
 
 #map {
   position: absolute;
@@ -184,6 +189,7 @@ html, body {
 .disaster-marker.level-green { background: var(--green); color: #06170a; }
 .disaster-marker.level-orange { background: var(--orange); color: #2a1600; }
 .disaster-marker.level-red { background: var(--red); color: #2a0000; }
+.disaster-marker.local-quake { background: var(--local); color: #1a0a2e; }
 
 .disaster-cluster {
   width: 32px;
@@ -201,6 +207,7 @@ html, body {
 .disaster-cluster.level-green { background: var(--green); color: #06170a; }
 .disaster-cluster.level-orange { background: var(--orange); color: #2a1600; }
 .disaster-cluster.level-red { background: var(--red); color: #2a0000; }
+.disaster-cluster.local-quake { background: var(--local); color: #1a0a2e; }
 
 .panel {
   position: fixed;
@@ -257,6 +264,14 @@ html, body {
 .panel-badge.level-green { background: var(--green); color: #06170a; }
 .panel-badge.level-orange { background: var(--orange); color: #2a1600; }
 .panel-badge.level-red { background: var(--red); color: #2a0000; }
+.panel-badge.local-quake { background: var(--local); color: #1a0a2e; }
+
+.panel-note {
+  margin: 10px 0 0 0;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--text-dim);
+}
 
 .panel-row {
   display: flex;
@@ -419,8 +434,8 @@ html, body {
     padding: max(10px, env(safe-area-inset-top)) max(14px, env(safe-area-inset-right)) 10px
       max(14px, env(safe-area-inset-left));
   }
-  .filters, .alert-filters { gap: 5px; }
-  .filter-btn, .alert-btn { padding: 5px 8px; font-size: 10px; }
+  .filters, .alert-filters, .extra-filters { gap: 5px; }
+  .filter-btn, .alert-btn, .local-quake-btn { padding: 5px 8px; font-size: 10px; }
   .brand h1 { font-size: 13px; letter-spacing: 2px; }
 
   /* .panel stays a fixed overlay regardless, so it still needs a top offset clearing the topbar —

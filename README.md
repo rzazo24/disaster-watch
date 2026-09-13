@@ -87,6 +87,16 @@ publicados como repos independientes a modo de portfolio.
 - El botón "?" junto al título abre un panel de ayuda con el significado de cada
   nivel de alerta y tipo de evento.
 
+- El botón "Sismos locales" (desactivado por defecto) añade terremotos menores en España
+  —magnitud hasta 4,5, que GDACS no recoge por ser un servicio centrado en catástrofes con
+  posible impacto internacional— usando la API pública de
+  [EMSC](https://www.seismicportal.eu/) (Euro-Mediterranean Seismological Centre), que
+  agrega redes sismológicas nacionales incluida la del IGN español. Se muestran en su
+  propio color morado, con panel propio (ubicación, fecha, magnitud, profundidad, fuente
+  y enlace a la ficha de EMSC) ya que no tienen nivel de alerta GDACS ni el resto de campos
+  de un evento GDACS. Se cubren la península, Baleares y Canarias, con datos de los
+  últimos 7 días.
+
 - El botón ⌖, junto al control de zoom, centra el mapa en la ubicación actual del
   navegador (vía la Geolocation API) y marca el punto con un círculo azul y su radio
   de precisión. Requiere permiso de localización del navegador; si se deniega o no
@@ -140,6 +150,11 @@ demo de visualización y no un sistema de alerta.
 
 Los tiles del mapa son de [Esri](https://www.esri.com/) (`World_Dark_Gray_Base`,
 gratuitos y sin API key).
+
+Los sismos locales (botón "Sismos locales", desactivados por defecto) provienen de
+[EMSC](https://www.seismicportal.eu/) (Euro-Mediterranean Seismological Centre), que
+agrega datos de redes sismológicas nacionales —incluida la del IGN español— y expone una
+API pública sin necesidad de clave.
 
 ## Cómo correrlo en local
 
