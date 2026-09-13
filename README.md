@@ -110,7 +110,8 @@ and Coordination System), un marco de cooperación entre Naciones Unidas
 
 Según los [términos de uso de GDACS](https://www.gdacs.org/documents/2025/GDACS_Terms_of_use_Mar_25.pdf),
 se solicita citar la fuente como *"Global Disaster Awareness and Coordination
-System, GDACS"*. Este proyecto lo hace en el pie del mapa.
+System, GDACS"*. El pie del mapa muestra un crédito abreviado; la cita completa,
+tal cual la exige GDACS, está en el panel de ayuda ("?" junto al título).
 
 GDACS advierte además que sus alertas se generan de forma (semi)automática, pueden
 contener errores, y no sustituyen a las autoridades oficiales de protección civil ni
