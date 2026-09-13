@@ -79,3 +79,8 @@ Y abrir `http://localhost:8000` en el navegador.
 
 Pensado para Vercel (o cualquier hosting estático): no hay configuración de build,
 solo servir `index.html`, `style.css` y `script.js` tal cual.
+
+## Licencia
+
+Código bajo licencia MIT (ver [LICENSE](LICENSE)). Los datos de GDACS y los tiles
+de Esri se rigen por sus propios términos de uso, enlazados más arriba.
