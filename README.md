@@ -79,7 +79,9 @@ publicados como repos independientes a modo de portfolio.
   (icono maskable para Android, `apple-touch-icon` para iOS). Un service worker
   (`sw.js`) cachea solo el shell estático de la app (HTML/CSS/JS/iconos) para que
   cargue al instante y funcione sin conexión — nunca cachea el feed de GDACS ni los
-  tiles del mapa, que siempre se piden en directo.
+  tiles del mapa, que siempre se piden en directo. El shell se refresca en segundo
+  plano en cada visita, y si detecta una versión nueva mientras la app está abierta,
+  se recarga sola una vez para aplicarla.
 
 ### Limitaciones conocidas
 
