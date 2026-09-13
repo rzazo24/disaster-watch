@@ -172,6 +172,7 @@ function showPanel(event) {
     `;
   };
 
+  document.getElementById('help-panel').classList.add('hidden');
   panel.dataset.eventId = event.id;
   render('Cargando…');
   panel.classList.remove('hidden');
@@ -188,6 +189,20 @@ function showPanel(event) {
 
 document.getElementById('panel-close').addEventListener('click', () => {
   document.getElementById('panel').classList.add('hidden');
+});
+
+// ---- Help panel ----
+document.getElementById('help-types').innerHTML = Object.entries(TYPE_META)
+  .map(([, meta]) => `<div class="help-type-row"><span class="icon">${meta.icon}</span>${meta.label}</div>`)
+  .join('');
+
+document.getElementById('help-open').addEventListener('click', () => {
+  document.getElementById('panel').classList.add('hidden');
+  document.getElementById('help-panel').classList.remove('hidden');
+});
+
+document.getElementById('help-close').addEventListener('click', () => {
+  document.getElementById('help-panel').classList.add('hidden');
 });
 
 function showError(msg) {
