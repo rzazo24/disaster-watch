@@ -23,16 +23,28 @@ function buildUrl(types, levels, pageNumber) {
 }
 
 async function fetchAllFeatures() {
+  // All MAX_PAGES requests fire at once rather than awaiting each in turn — sequential
+  // pagination made total load time MAX_PAGES times a single request's latency. Firing
+  // them in parallel costs a little unused bandwidth on the pages that turn out to be
+  // past the current-event boundary, but wall-clock time drops to roughly one round trip.
+  const results = await Promise.allSettled(
+    Array.from({ length: MAX_PAGES }, (_, i) => i + 1).map((page) =>
+      fetch(buildUrl(EVENT_TYPES, ['green', 'orange', 'red'], page)).then((res) => {
+        if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { httpStatus: res.status });
+        return res.json();
+      })
+    )
+  );
+
   let all = [];
-  for (let page = 1; page <= MAX_PAGES; page++) {
-    const res = await fetch(buildUrl(EVENT_TYPES, ['green', 'orange', 'red'], page));
-    if (!res.ok) {
-      if (page === 1) throw Object.assign(new Error(`HTTP ${res.status}`), { httpStatus: res.status });
-      console.error(`GDACS page ${page} failed (HTTP ${res.status}) — using what was already fetched.`);
+  for (let i = 0; i < results.length; i++) {
+    const result = results[i];
+    if (result.status === 'rejected') {
+      if (i === 0) throw result.reason; // page 1 failing is the only fatal case
+      console.error(`GDACS page ${i + 1} failed — using what was already fetched.`, result.reason);
       break;
     }
-    const data = await res.json();
-    const features = data.features || [];
+    const features = result.value.features || [];
     const current = features.filter((f) => String(f.properties && f.properties.iscurrent) === 'true');
     all = all.concat(current);
     if (features.length < 100 || current.length === 0) break;
