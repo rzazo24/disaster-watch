@@ -25,7 +25,8 @@ const TYPE_META = {
 // ---- State ----
 let activeTypes = new Set(EVENT_TYPES);
 let activeLevels = new Set(['green', 'orange', 'red']);
-const markers = new Map(); // eventid+episodeid -> L.marker
+const markers = new Map(); // eventid-episodeid -> { marker, event }
+let allEvents = []; // last fetched, unfiltered — the source of truth for re-rendering on filter changes
 
 // ---- Map setup ----
 // zoomControl is moved to bottom-left so it doesn't sit under the fixed topbar's title.
@@ -239,8 +240,8 @@ async function fetchEvents() {
       return;
     }
     const data = await res.json();
-    const events = (data.features || []).map(parseFeature).filter(Boolean);
-    renderEvents(events);
+    allEvents = (data.features || []).map(parseFeature).filter(Boolean);
+    renderEvents(allEvents);
     hideError();
   } catch (err) {
     // A TypeError from fetch() with no other detail is the classic CORS-block signature in browsers.
@@ -268,8 +269,7 @@ document.querySelectorAll('.filter-btn').forEach((btn) => {
       if (btn.classList.contains('active')) activeTypes.add(type);
       else activeTypes.delete(type);
     }
-    renderEvents([...markers.values()].map((m) => m.event));
-    fetchEvents(); // re-fetch so newly-enabled types populate immediately
+    renderEvents(allEvents);
   });
 });
 
@@ -279,7 +279,7 @@ document.querySelectorAll('.alert-btn').forEach((btn) => {
     btn.classList.toggle('active');
     if (btn.classList.contains('active')) activeLevels.add(level);
     else activeLevels.delete(level);
-    renderEvents([...markers.values()].map((m) => m.event));
+    renderEvents(allEvents);
   });
 });
 
