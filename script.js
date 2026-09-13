@@ -495,3 +495,12 @@ document.querySelectorAll('.alert-btn').forEach((btn) => {
 applyLanguage(lang);
 fetchEvents();
 setInterval(fetchEvents, REFRESH_SECONDS * 1000);
+
+// PWA shell caching — see sw.js for what it does and, just as importantly, doesn't cache
+// (never the GDACS feed itself). Registration failing (e.g. served over plain HTTP in some
+// local setups) is non-fatal, so it's only logged, not surfaced to the user.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js').catch((err) => console.error('SW registration failed', err));
+  });
+}

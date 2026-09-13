@@ -1,0 +1,16 @@
+{
+  "name": "Disaster Watch",
+  "short_name": "Disaster Watch",
+  "description": "Mapa en tiempo real de alertas globales de catástrofes (GDACS): terremotos, ciclones, inundaciones, volcanes, incendios y sequías.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#0a0f0a",
+  "theme_color": "#0a0f0a",
+  "orientation": "any",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon-512-maskable.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
