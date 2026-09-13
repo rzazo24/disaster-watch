@@ -92,6 +92,9 @@ publicados como repos independientes a modo de portfolio.
   de precisión. Requiere permiso de localización del navegador; si se deniega o no
   está disponible, se muestra un aviso en vez de fallar en silencio.
 
+- Incluye metadatos Open Graph y Twitter Card (título, descripción y la captura de
+  pantalla como imagen) para que el enlace se vea bien al compartirlo en redes o chats.
+
 - Es una PWA instalable, con iconos propios para escritorio (192/512px) y móvil
   (icono maskable para Android, `apple-touch-icon` para iOS). Un service worker
   (`sw.js`) cachea solo el shell estático de la app (HTML/CSS/JS/iconos) para que
