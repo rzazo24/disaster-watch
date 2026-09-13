@@ -1,5 +1,12 @@
 # Disaster Watch
 
+![HTML5](https://img.shields.io/badge/HTML5-E34F26?style=flat&logo=html5&logoColor=white)
+![CSS3](https://img.shields.io/badge/CSS3-1572B6?style=flat&logo=css3&logoColor=white)
+![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=flat&logo=javascript&logoColor=black)
+![Leaflet](https://img.shields.io/badge/Leaflet-199900?style=flat&logo=leaflet&logoColor=white)
+![Vercel](https://img.shields.io/badge/Vercel-000000?style=flat&logo=vercel&logoColor=white)
+![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat)
+
 Mapa en tiempo (casi) real de alertas globales de catástrofes: terremotos, ciclones
 tropicales, inundaciones, erupciones volcánicas, incendios forestales y sequías.
 Sin backend, sin API keys, sin build step — HTML/CSS/JS puro con [Leaflet](https://leafletjs.com/)
@@ -7,6 +14,8 @@ cargado por CDN, pensado para desplegarse como sitio estático.
 
 Forma parte de una serie de proyectos pequeños que exploran APIs públicas gratuitas,
 publicados como repos independientes a modo de portfolio.
+
+**Demo en vivo:** https://disaster-watch-seven.vercel.app/
 
 ## Cómo funciona
 
@@ -79,6 +88,11 @@ Y abrir `http://localhost:8000` en el navegador.
 
 Pensado para Vercel (o cualquier hosting estático): no hay configuración de build,
 solo servir `index.html`, `style.css` y `script.js` tal cual.
+
+Incluye el script de [Vercel Web Analytics](https://vercel.com/docs/analytics)
+(`/_vercel/insights/script.js`). Solo envía datos una vez activado *Analytics*
+para el proyecto en el dashboard de Vercel; en cualquier otro sitio (incluido
+local) es una petición que falla en silencio, sin romper nada.
 
 ## Licencia
 
