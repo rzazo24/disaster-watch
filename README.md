@@ -91,6 +91,14 @@ publicados como repos independientes a modo de portfolio.
   eventos que podrían requerir asistencia internacional. Por eso, por ejemplo, no todos
   los incendios forestales conocidos aparecen — GDACS no rastrea todos los incendios,
   solo los que entran en ese criterio.
+- Los rótulos del propio mapa (nombres de países y ciudades sobre los tiles de Esri) se
+  quedan siempre en inglés, aunque la interfaz esté en español. A diferencia del país
+  que se muestra en el panel de detalle (texto que genera esta app y por tanto puede
+  traducir), esos rótulos vienen ya dibujados dentro de las imágenes de los tiles — no
+  son texto que se pueda traducir con CSS o JS. Ningún proveedor de tiles raster
+  gratuito y sin API key ofrece una variante en español; conseguirlo de verdad exigiría
+  pasar a tiles vectoriales (p. ej. MapLibre GL en vez de Leaflet), un cambio de motor de
+  mapa completo, no una traducción puntual, así que se deja fuera de alcance.
 
 ## Fuente de datos y atribución
 
