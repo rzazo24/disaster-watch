@@ -28,9 +28,12 @@ let activeLevels = new Set(['green', 'orange', 'red']);
 const markers = new Map(); // eventid+episodeid -> L.marker
 
 // ---- Map setup ----
+// zoomControl is moved to bottom-left so it doesn't sit under the fixed topbar's title.
 const map = L.map('map', {
   worldCopyJump: true,
+  zoomControl: false,
 }).setView([20, 10], 3);
+L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
 // CARTO's basemap tiles now require a (free) API key — anonymous requests come back
 // watermarked "API KEY REQUIRED". Esri's dark gray canvas gives a near-identical look
