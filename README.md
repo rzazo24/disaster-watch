@@ -57,9 +57,10 @@ publicados como repos independientes a modo de portfolio.
 
 - Interfaz disponible en español e inglés — el botón junto al título alterna el
   idioma (persistido en `localStorage`), detectado por defecto a partir del idioma
-  del navegador. Solo traduce la interfaz propia: los campos que vienen de GDACS
-  (nombre del evento, país, severidad) siempre llegan en inglés, sea cual sea el
-  idioma elegido, porque la API no ofrece una variante localizada de esos datos.
+  del navegador. Solo traduce la interfaz propia y, mediante un diccionario por
+  código ISO3, el nombre del país. El resto de campos que vienen de GDACS (nombre
+  del evento, severidad) siempre llegan en inglés, porque son texto libre que la
+  API no ofrece traducido.
 
 - El botón "?" junto al título abre un panel de ayuda con el significado de cada
   nivel de alerta y tipo de evento.
