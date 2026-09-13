@@ -253,7 +253,16 @@ html, body {
 
 .hidden { display: none !important; }
 
+/* Below 700px the topbar wraps onto multiple rows. It stays `position: fixed` (dropping that
+   would silently kill its z-index, since z-index only applies to positioned elements — the map
+   would then paint over it, hiding the title and every filter button). #map and .panel get
+   pushed down instead, by roughly how tall the wrapped topbar ends up at each width. */
 @media (max-width: 700px) {
-  .topbar { position: static; }
-  .panel { left: 12px; right: 12px; width: auto; top: 12px; }
+  #map { top: 200px; }
+  .panel { left: 12px; right: 12px; width: auto; top: 200px; }
+}
+
+@media (max-width: 480px) {
+  #map { top: 245px; }
+  .panel { top: 245px; }
 }
