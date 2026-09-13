@@ -95,7 +95,9 @@ publicados como repos independientes a modo de portfolio.
   propio color morado, con panel propio (ubicación, fecha, magnitud, profundidad, fuente
   y enlace a la ficha de EMSC) ya que no tienen nivel de alerta GDACS ni el resto de campos
   de un evento GDACS. Se cubren la península, Baleares y Canarias, con datos de los
-  últimos 7 días.
+  últimos 7 días. Los de magnitud 3,5 o superior —el umbral aproximado a partir del cual
+  un terremoto suele notarse— pulsan en el mapa para distinguirlos del resto, sin cambiar
+  de color (esa distinción es solo de magnitud, no la evaluación de impacto de GDACS).
 
 - El botón ⌖, junto al control de zoom, centra el mapa en la ubicación actual del
   navegador (vía la Geolocation API) y marca el punto con un círculo azul y su radio

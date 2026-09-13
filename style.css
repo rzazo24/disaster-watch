@@ -191,6 +191,18 @@ html, body {
 .disaster-marker.level-red { background: var(--red); color: #2a0000; }
 .disaster-marker.local-quake { background: var(--local); color: #1a0a2e; }
 
+/* "notable" (magnitude >= EMSC_NOTABLE_MAG) pulses rather than changing color — that scale
+   is unrelated to GDACS's own red/orange/green severity, so it stays a variation on
+   local-quake's violet instead of borrowing another level's color. */
+.disaster-marker.local-quake.notable,
+.disaster-cluster.local-quake.notable {
+  animation: local-quake-pulse 1.6s ease-in-out infinite;
+}
+@keyframes local-quake-pulse {
+  0%, 100% { box-shadow: 0 0 8px currentColor; }
+  50% { box-shadow: 0 0 18px 5px currentColor; }
+}
+
 .disaster-cluster {
   width: 32px;
   height: 32px;
