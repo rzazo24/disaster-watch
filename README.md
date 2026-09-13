@@ -50,6 +50,15 @@ publicados como repos independientes a modo de portfolio.
   de evento el panel indica honestamente que el dato no está disponible en vez de
   inventar un placeholder.
 
+- El mismo clic también dibuja, si existe, la huella real del evento en el mapa: el área
+  de una inundación, o la trayectoria y el cono de incertidumbre de un ciclón, en vez de
+  solo el punto del marcador. Se limpia al cerrar el panel o seleccionar otro evento.
+
+- Cuando GDACS tiene partes de impacto concretos (marco Sendai) —viviendas dañadas,
+  personas afectadas, rescates, etc.— el panel los lista (limitado a los primeros, con un
+  "+N más" si hay muchos; se ha visto un caso real con más de 200 en una inundación de
+  larga duración). No todos los eventos los tienen.
+
 - El listado se refresca cada 5 minutos, paginando la consulta a GDACS (que limita cada
   petición a 100 eventos) hasta agotar los eventos actualmente activos — normalmente
   entre 200 y 300 en total, contando sequías y otros eventos de larga duración. Sin esto,
