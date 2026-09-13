@@ -1,16 +1,43 @@
 // ---- Config ----
 // GDACS public API — no key, no documented rate limit. GeoJSON response.
 // Docs: https://www.gdacs.org/Documents/2025/GDACS_API_quickstart_v2.pdf
-// Note: the SEARCH endpoint caps out at 100 records per request (no pagination here).
+// The SEARCH endpoint caps out at 100 records per request, ordered by date (most recent
+// first) — `pagenumber` gets the rest. Confirmed live that page 1 alone was hiding a real,
+// currently-open event once there were more than 100 concurrently-active disasters across
+// all types/levels combined (long-running droughts alone keep dozens "current" for months).
+// `iscurrent` on each feature isn't a filterable query param (passing it is silently
+// ignored), so pagination has to keep going until a page's current-event share hits zero —
+// past that point in the date order, GDACS is only returning already-closed disasters, and
+// including those would show resolved events as if they were still ongoing.
 const EVENT_TYPES = ['EQ', 'TC', 'FL', 'VO', 'WF', 'DR'];
 const REFRESH_SECONDS = 300; // events don't change second to second — 5 min is plenty
+const MAX_PAGES = 5; // hard safety cap (500 events) in case that boundary is ever never reached
 
-function buildUrl(types, levels) {
+function buildUrl(types, levels, pageNumber) {
   const params = new URLSearchParams({
     eventlist: types.join(';'),
     alertlevel: levels.join(';'),
   });
+  if (pageNumber > 1) params.set('pagenumber', pageNumber);
   return `https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH?${params.toString()}`;
+}
+
+async function fetchAllFeatures() {
+  let all = [];
+  for (let page = 1; page <= MAX_PAGES; page++) {
+    const res = await fetch(buildUrl(EVENT_TYPES, ['green', 'orange', 'red'], page));
+    if (!res.ok) {
+      if (page === 1) throw Object.assign(new Error(`HTTP ${res.status}`), { httpStatus: res.status });
+      console.error(`GDACS page ${page} failed (HTTP ${res.status}) — using what was already fetched.`);
+      break;
+    }
+    const data = await res.json();
+    const features = data.features || [];
+    const current = features.filter((f) => String(f.properties && f.properties.iscurrent) === 'true');
+    all = all.concat(current);
+    if (features.length < 100 || current.length === 0) break;
+  }
+  return all;
 }
 
 // ---- i18n ----
@@ -411,18 +438,14 @@ function renderEvents(events) {
 async function fetchEvents() {
   setLoading(true);
   try {
-    const res = await fetch(buildUrl(EVENT_TYPES, ['green', 'orange', 'red']));
-    if (!res.ok) {
-      showError(STRINGS[lang].errors.http(res.status));
-      return;
-    }
-    const data = await res.json();
-    allEvents = (data.features || []).map(parseFeature).filter(Boolean);
+    const features = await fetchAllFeatures();
+    allEvents = features.map(parseFeature).filter(Boolean);
     renderEvents(allEvents);
     hideError();
   } catch (err) {
-    // A TypeError from fetch() with no other detail is the classic CORS-block signature in browsers.
-    showError(STRINGS[lang].errors.cors);
+    // A TypeError from fetch() with no other detail is the classic CORS-block signature in browsers;
+    // an HTTP error on page 1 (the only one that aborts the whole fetch) carries `httpStatus`.
+    showError(err.httpStatus ? STRINGS[lang].errors.http(err.httpStatus) : STRINGS[lang].errors.cors);
     console.error(err);
   } finally {
     setLoading(false);
