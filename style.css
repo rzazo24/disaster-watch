@@ -256,6 +256,23 @@ html, body {
   border-bottom: 1px dashed var(--accent);
 }
 
+.panel-subheading {
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin: 12px 0 6px 0;
+}
+
+.panel-impact {
+  margin: 0 0 8px 0;
+  padding-left: 16px;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.panel-impact li { margin-bottom: 4px; }
+.panel-impact-more { list-style: none; margin-left: -16px; color: var(--text-dim); font-style: italic; }
+
 .help-content h3 {
   font-size: 11px;
   letter-spacing: 1px;

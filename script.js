@@ -91,7 +91,8 @@ const STRINGS = {
       population: 'Población en zona (est.)', score: 'Puntuación de alerta',
       link: 'Ver informe oficial GDACS →', loadingPop: 'Cargando…',
       popUnavailable: 'No disponible para este tipo de evento', dash: '—', event: 'Evento',
-      source: 'Fuente', updated: 'Actualizado',
+      source: 'Fuente', updated: 'Actualizado', impact: 'Impacto reportado',
+      moreImpact: (n) => `+ ${n} más`,
     },
     errors: {
       http: (status) => `Error al obtener datos de GDACS (HTTP ${status}).`,
@@ -135,7 +136,8 @@ const STRINGS = {
       population: 'Population in area (est.)', score: 'Alert score',
       link: 'View official GDACS report →', loadingPop: 'Loading…',
       popUnavailable: 'Not available for this event type', dash: '—', event: 'Event',
-      source: 'Source', updated: 'Updated',
+      source: 'Source', updated: 'Updated', impact: 'Reported impact',
+      moreImpact: (n) => `+ ${n} more`,
     },
     errors: {
       http: (status) => `Error fetching data from GDACS (HTTP ${status}).`,
@@ -320,6 +322,10 @@ function parseFeature(feature) {
     description: pick(p, 'htmldescription', 'description'),
     // `url` is an object ({ geometry, report, details }) — the report link lives at `url.report`.
     reportUrl: (p.url && p.url.report) || null,
+    // Per-event footprint (track lines, uncertainty cones, flood extent polygons) — see
+    // fetchEventGeometry()/showEventGeometry(). Most event types only have a centroid
+    // point here, in which case nothing extra ends up rendered.
+    geometryUrl: (p.url && p.url.geometry) || null,
     severity: p.severitydata && (p.severitydata.severitytext || p.severitydata.severity),
     lon: coords[0],
     lat: coords[1],
@@ -347,7 +353,8 @@ function escapeHtml(str) {
   }[c]));
 }
 
-// Per-event detail cache: eventId -> population info, or null once we know it's unavailable.
+// Per-event detail cache: eventId -> { population, sendai }, fetched once from the same
+// per-episode endpoint (no reason to hit it twice for two different fields).
 const detailCache = new Map();
 
 function buildDetailUrl(event) {
@@ -370,19 +377,87 @@ function extractPopulation(detail) {
   return null;
 }
 
+// Sendai Framework impact reports — concrete, human-reported figures ("50 houses damaged
+// in Split, Croatia") filed by partners for some events. Free text from GDACS, like
+// severity, so it's never translated; unlike population, it's fine for this to just be
+// absent (most events don't have any) rather than showing an explicit "unavailable".
+// A long-running event can carry hundreds of these (seen live: 227 for one US flood) —
+// shown capped, see SENDAI_DISPLAY_LIMIT in showPanel()'s render().
+const SENDAI_DISPLAY_LIMIT = 6;
+
+function extractSendai(detail) {
+  const sendai = detail && detail.properties && detail.properties.sendai;
+  if (!Array.isArray(sendai) || !sendai.length) return null;
+  return sendai.map((s) => s.description).filter(Boolean);
+}
+
 async function fetchEventDetail(event) {
   if (detailCache.has(event.eventId)) return detailCache.get(event.eventId);
   try {
     const res = await fetch(buildDetailUrl(event));
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
-    const population = extractPopulation(data);
-    detailCache.set(event.eventId, population);
-    return population;
+    const result = { population: extractPopulation(data), sendai: extractSendai(data) };
+    detailCache.set(event.eventId, result);
+    return result;
   } catch (err) {
     console.error('Failed to fetch event detail', event.eventId, err);
+    return { population: null, sendai: null };
+  }
+}
+
+// ---- Event footprint (track lines, uncertainty cones, flood/shake extent polygons) ----
+const LEVEL_COLORS = { green: '#3ef27a', orange: '#ffb347', red: '#ff5d5d' };
+const geometryCache = new Map(); // eventId -> filtered GeoJSON FeatureCollection, or null
+
+function styleGeometryFeature(feature, event) {
+  const cls = (feature.properties && feature.properties.Class) || '';
+  if (cls.startsWith('Line_')) return { color: LEVEL_COLORS[event.level], weight: 2, fillOpacity: 0 };
+  if (cls.includes('Cones')) {
+    return { color: LEVEL_COLORS[event.level], weight: 1, fillOpacity: 0.05, dashArray: '4,4' };
+  }
+  if (cls.includes('Green')) return { color: LEVEL_COLORS.green, weight: 1, fillOpacity: 0.15 };
+  if (cls.includes('Orange')) return { color: LEVEL_COLORS.orange, weight: 1, fillOpacity: 0.15 };
+  if (cls.includes('Red')) return { color: LEVEL_COLORS.red, weight: 1, fillOpacity: 0.15 };
+  return { color: LEVEL_COLORS[event.level], weight: 1, fillOpacity: 0.15 }; // Affected/Circle/etc.
+}
+
+async function fetchEventGeometry(event) {
+  if (!event.geometryUrl) return null;
+  if (geometryCache.has(event.eventId)) return geometryCache.get(event.eventId);
+  try {
+    const res = await fetch(event.geometryUrl);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    // Points duplicate the marker that's already on the map; "Global" layers (seen on
+    // floods) are a coarse model-domain reference box, not the actual impact area.
+    const features = (data.features || []).filter((f) => {
+      const cls = (f.properties && f.properties.Class) || '';
+      return f.geometry && f.geometry.type !== 'Point' && !cls.includes('Global');
+    });
+    const result = features.length ? { type: 'FeatureCollection', features } : null;
+    geometryCache.set(event.eventId, result);
+    return result;
+  } catch (err) {
+    console.error('Failed to fetch event geometry', event.eventId, err);
     return null;
   }
+}
+
+let geometryLayer = null;
+function clearGeometryLayer() {
+  if (geometryLayer) {
+    map.removeLayer(geometryLayer);
+    geometryLayer = null;
+  }
+}
+
+function showEventGeometry(event) {
+  fetchEventGeometry(event).then((geojson) => {
+    if (!geojson || document.getElementById('panel').dataset.eventId !== event.id) return;
+    clearGeometryLayer();
+    geometryLayer = L.geoJSON(geojson, { style: (f) => styleGeometryFeature(f, event) }).addTo(map);
+  });
 }
 
 let currentPanelEvent = null; // re-rendered in the new language on toggle, if its panel is open
@@ -394,7 +469,7 @@ function showPanel(event) {
   const panel = document.getElementById('panel');
   const content = document.getElementById('panel-content');
 
-  const render = (populationText) => {
+  const render = (populationText, sendai) => {
     const rows = [
       [t.panel.type, meta.label],
       [t.panel.country, escapeHtml(formatCountry(event, lang) || t.panel.dash)],
@@ -410,28 +485,42 @@ function showPanel(event) {
       <p class="panel-title">${escapeHtml(event.name || meta.label)}</p>
       <span class="panel-badge level-${event.level}">${t.levels[event.level]}</span>
       ${rows.map(([k, v]) => `<div class="panel-row"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('')}
+      ${sendai && sendai.length ? `
+        <p class="panel-subheading">${t.panel.impact}</p>
+        <ul class="panel-impact">
+          ${sendai.slice(0, SENDAI_DISPLAY_LIMIT).map((line) => `<li>${escapeHtml(line)}</li>`).join('')}
+          ${sendai.length > SENDAI_DISPLAY_LIMIT ? `<li class="panel-impact-more">${t.panel.moreImpact(sendai.length - SENDAI_DISPLAY_LIMIT)}</li>` : ''}
+        </ul>
+      ` : ''}
       ${event.reportUrl ? `<a class="panel-link" href="${escapeHtml(event.reportUrl)}" target="_blank" rel="noopener">${t.panel.link}</a>` : ''}
     `;
   };
 
+  clearGeometryLayer();
   document.getElementById('help-panel').classList.add('hidden');
   panel.dataset.eventId = event.id;
-  render(t.panel.loadingPop);
+  render(t.panel.loadingPop, null);
   panel.classList.remove('hidden');
 
-  fetchEventDetail(event).then((population) => {
+  fetchEventDetail(event).then(({ population, sendai }) => {
     if (panel.dataset.eventId !== event.id) return; // user already selected a different event
     render(
       population
         ? `${Number(population.value).toLocaleString(t.locale)}${population.note ? ' — ' + escapeHtml(population.note) : ''}`
-        : t.panel.popUnavailable
+        : t.panel.popUnavailable,
+      sendai
     );
   });
+
+  showEventGeometry(event);
 }
 
-document.getElementById('panel-close').addEventListener('click', () => {
+function hideEventPanel() {
   document.getElementById('panel').classList.add('hidden');
-});
+  clearGeometryLayer();
+}
+
+document.getElementById('panel-close').addEventListener('click', hideEventPanel);
 
 // ---- Help panel ----
 function renderHelpPanel() {
@@ -456,7 +545,7 @@ function renderHelpPanel() {
 }
 
 document.getElementById('help-open').addEventListener('click', () => {
-  document.getElementById('panel').classList.add('hidden');
+  hideEventPanel();
   document.getElementById('help-panel').classList.remove('hidden');
 });
 
