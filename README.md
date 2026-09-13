@@ -41,6 +41,14 @@ publicados como repos independientes a modo de portfolio.
   (verde/naranja/rojo) con un icono según el tipo de desastre. Los botones de la
   barra superior filtran por tipo y por nivel sin recargar la página.
 
+- Los marcadores cercanos entre sí se agrupan en un clúster numerado (vía
+  [Leaflet.markercluster](https://github.com/Leaflet/Leaflet.markercluster), coloreado
+  por el nivel de alerta más grave del grupo) en vez de solaparse sin poder distinguirse
+  ni hacer clic — con las ~230 alertas activas típicas, zonas con muchos eventos
+  simultáneos (p. ej. sequías e inundaciones en África Central) llegaban a mostrarse como
+  una mancha sólida de iconos encima unos de otros. Se separan al hacer zoom o al hacer
+  clic sobre el propio clúster.
+
 - Al hacer clic en un marcador se abre un panel lateral con el detalle del evento
   (país, fechas, última actualización, fuente de monitorización —p. ej. NEIC, NOAA,
   GLOFAS—, severidad, puntuación de alerta, enlace al informe oficial). La

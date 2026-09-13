@@ -183,6 +183,23 @@ html, body {
 .disaster-marker.level-orange { background: var(--orange); color: #2a1600; }
 .disaster-marker.level-red { background: var(--red); color: #2a0000; }
 
+.disaster-cluster {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font);
+  font-size: 12px;
+  font-weight: 600;
+  border: 2px solid rgba(0,0,0,0.4);
+  box-shadow: 0 0 8px currentColor;
+}
+.disaster-cluster.level-green { background: var(--green); color: #06170a; }
+.disaster-cluster.level-orange { background: var(--orange); color: #2a1600; }
+.disaster-cluster.level-red { background: var(--red); color: #2a0000; }
+
 .panel {
   position: fixed;
   top: 100px;

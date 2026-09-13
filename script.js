@@ -217,6 +217,35 @@ L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_D
   maxZoom: 16,
 }).addTo(map);
 
+// Markers cluster instead of rendering individually: at the default world view, confirmed
+// live that ~80% of the ~230 currently-open events sit close enough together (Central
+// Africa's drought/flood events especially — a solid unclickable wall of overlapping icons)
+// that individual markers are unreadable and un-clickable until zoomed in a lot. Clusters
+// still spiderfy at max zoom for the rare case of near-identical coordinates that even
+// zooming in doesn't separate. showCoverageOnHover is off to match the app's minimal style
+// (no extra polygon flashing on every hover).
+const markerCluster = L.markerClusterGroup({
+  showCoverageOnHover: false,
+  iconCreateFunction: clusterIcon,
+}).addTo(map);
+
+// A cluster's badge is colored by the worst alert level among its children (red beats
+// orange beats green) so a cluster hiding even one red event still reads as urgent,
+// consistent with how individual markers already work.
+function clusterIcon(cluster) {
+  const children = cluster.getAllChildMarkers();
+  let level = 'green';
+  for (const m of children) {
+    if (m.eventLevel === 'red') { level = 'red'; break; }
+    if (m.eventLevel === 'orange') level = 'orange';
+  }
+  return L.divIcon({
+    className: '',
+    html: `<div class="disaster-cluster level-${level}">${cluster.getChildCount()}</div>`,
+    iconSize: [32, 32],
+  });
+}
+
 // Attribution is a plain element (#map-attribution, styled in style.css) instead of
 // Leaflet's own corner control — Leaflet's own positioning kept producing safe-area
 // issues on an installed PWA that this element, sharing the error/loading banners'
@@ -651,15 +680,17 @@ function renderEvents(events) {
     if (markers.has(event.id)) {
       markers.get(event.id).marker.setLatLng([event.lat, event.lon]);
     } else {
-      const marker = L.marker([event.lat, event.lon], { icon }).addTo(map);
+      const marker = L.marker([event.lat, event.lon], { icon });
+      marker.eventLevel = event.level; // read by clusterIcon() to color the cluster badge
       marker.on('click', () => showPanel(event));
+      markerCluster.addLayer(marker);
       markers.set(event.id, { marker, event });
     }
   });
 
   for (const [id, entry] of markers.entries()) {
     if (!seen.has(id)) {
-      map.removeLayer(entry.marker);
+      markerCluster.removeLayer(entry.marker);
       markers.delete(id);
     }
   }
