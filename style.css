@@ -311,7 +311,12 @@ html, body {
 
 .error-banner {
   position: fixed;
-  bottom: max(20px, env(safe-area-inset-bottom));
+  /* A bit above the true edge so it clears #map-attribution below it (that one is a
+     fixed single line now — see its own comment — so this only needs a modest, fairly
+     constant gap, not the multi-line-wrap-dependent clearance an earlier version of
+     attribution needed). calc() keeps that gap ~34px whether or not the device has a
+     safe-area inset, rather than just taking the max of two unrelated pixel values. */
+  bottom: max(40px, calc(env(safe-area-inset-bottom, 0px) + 34px));
   left: 50%;
   transform: translateX(-50%);
   background: rgba(255, 93, 93, 0.15);
@@ -327,7 +332,8 @@ html, body {
 
 .loading-banner {
   position: fixed;
-  bottom: max(20px, env(safe-area-inset-bottom));
+  /* Same clearance as .error-banner above #map-attribution — see that comment. */
+  bottom: max(40px, calc(env(safe-area-inset-bottom, 0px) + 34px));
   left: 50%;
   transform: translateX(-50%);
   background: var(--panel-bg);
@@ -341,15 +347,19 @@ html, body {
 
 /* A plain fixed-position box instead of a Leaflet attribution control — same safe-area
    pattern already proven fine for the banners above, which Leaflet's own corner-container
-   positioning kept fighting on an installed PWA. Kept deliberately small ("un cuadrado
-   pequeño"): compact type, generous but non-fixed margin, and a max-width so it wraps into
-   a narrow column instead of stretching wide, on any screen size — not just the ~700-960px
-   band the old Leaflet-control version needed a dedicated media query to handle. */
+   positioning kept fighting on an installed PWA. white-space:nowrap keeps this a single,
+   predictably short line (the text itself is kept short enough to always fit — see
+   updateDataAttribution()) rather than letting it wrap to a variable, taller multi-line
+   block, which is what made it collide with the loading/error banners above no matter
+   how much clearance those got tuned to. */
 .map-attribution {
   position: fixed;
   bottom: max(6px, env(safe-area-inset-bottom));
   right: max(6px, env(safe-area-inset-right));
-  max-width: min(60vw, 260px);
+  max-width: calc(100vw - 12px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   background: rgba(10, 15, 10, 0.8);
   color: var(--text-dim);
   padding: 3px 6px;

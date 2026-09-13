@@ -85,7 +85,7 @@ const STRINGS = {
         'El mapa se actualiza solo cada 5 minutos.',
       ],
       dataHeading: 'Datos',
-      dataText: (link) => `De ${link} (ONU + Comisión Europea). La API limita cada consulta a 100 eventos, así que en días de mucha actividad alguno puede quedar fuera.`,
+      dataText: (link) => `De ${link} (ONU + Comisión Europea), citado tal y como exigen sus términos de uso: "Global Disaster Awareness and Coordination System, GDACS". La API limita cada consulta a 100 eventos, así que en días de mucha actividad alguno puede quedar fuera. Tiles del mapa de Esri, HERE, Garmin y colaboradores de OpenStreetMap.`,
     },
     panel: {
       type: 'Tipo', country: 'País', from: 'Desde', to: 'Hasta', severity: 'Severidad',
@@ -131,7 +131,7 @@ const STRINGS = {
         'The map refreshes automatically every 5 minutes.',
       ],
       dataHeading: 'Data',
-      dataText: (link) => `From ${link} (UN + European Commission). The API caps each query at 100 events, so on high-activity days some may be left out.`,
+      dataText: (link) => `From ${link} (UN + European Commission), cited as its terms of use require: "Global Disaster Awareness and Coordination System, GDACS". The API caps each query at 100 events, so on high-activity days some may be left out. Map tiles by Esri, HERE, Garmin and OpenStreetMap contributors.`,
     },
     panel: {
       type: 'Type', country: 'Country', from: 'From', to: 'To', severity: 'Severity',
@@ -214,20 +214,24 @@ L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_D
 }).addTo(map);
 
 // Attribution is a plain element (#map-attribution, styled in style.css) instead of
-// Leaflet's own corner control. Leaflet's `.leaflet-bottom`/`.leaflet-right` positioning
-// kept producing safe-area/sizing issues on an installed PWA that the same fixed-position
-// + max(px, env(safe-area-inset-*)) pattern already used for the error/loading banners
-// doesn't have — so attribution now uses that same proven pattern instead of fighting
-// Leaflet's positioning system further. Esri/OSM's tile attribution and Leaflet's own
-// (not legally required, BSD-2 licensed, but customary) credit are static and never
-// translated, same as any map attribution; only the "Datos"/"Data" label in front of the
-// GDACS citation switches with the UI language.
+// Leaflet's own corner control — Leaflet's own positioning kept producing safe-area
+// issues on an installed PWA that this element, sharing the error/loading banners'
+// fixed-position + max(px, env(safe-area-inset-*)) pattern, doesn't have.
+//
+// Kept to a single short line on purpose, not the full "Tiles © Esri, HERE, Garmin, ©
+// OpenStreetMap contributors" + GDACS citation: that full text reliably needing 3-5
+// wrapped lines at any width narrow enough to matter was *why* it kept colliding with
+// the loading/error banners above it no matter how much clearance those got tuned to —
+// a taller box just needs more clearance, which needs a narrower box to leave room for,
+// which wraps into more lines, taller again. Short-and-single-line sidesteps that
+// entirely instead of continuing to chase it with pixel math. The full required GDACS
+// citation and tile credits still appear verbatim in the help panel's "Data" section
+// (`renderHelpPanel()` below), so the exact citation text is present in the app either
+// way — just not crammed into this small always-visible corner badge.
 const GDACS_ATTRIBUTION = 'Global Disaster Awareness and Coordination System, GDACS';
 function updateDataAttribution(l) {
   document.getElementById('map-attribution').innerHTML =
-    '<a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a> | ' +
-    'Tiles &copy; Esri, HERE, Garmin, &copy; OpenStreetMap contributors, ' +
-    `${STRINGS[l].attributionData}: ${GDACS_ATTRIBUTION}`;
+    `Tiles &copy; Esri — ${STRINGS[l].attributionData}: <a href="https://www.gdacs.org/" target="_blank" rel="noopener">GDACS</a>`;
 }
 updateDataAttribution(lang);
 
