@@ -261,18 +261,31 @@ html, body {
 
 .hidden { display: none !important; }
 
-/* Below 700px the topbar wraps onto multiple rows. It stays `position: fixed` (dropping that
-   would silently kill its z-index, since z-index only applies to positioned elements — the map
-   would then paint over it, hiding the title and every filter button). #map and .panel get
-   pushed down instead, by roughly how tall the wrapped topbar ends up at each width. */
+/* Below 700px the topbar wraps onto multiple rows, and how tall that ends up being shifts with
+   viewport width (2 rows vs. 3) and even with the event data (nothing forces a fixed height).
+   Rather than chase that with hardcoded offsets, body becomes a column flexbox: the topbar sits
+   in normal flow (no more fixed+z-index trick needed) and #map simply fills whatever space is
+   left, at any width, without knowing the topbar's height at all. */
 @media (max-width: 700px) {
-  #map { top: 200px; }
-  .panel { left: 12px; right: 12px; width: auto; top: 200px; }
+  body { display: flex; flex-direction: column; }
+  .topbar { position: static; flex-shrink: 0; }
+  #map { position: static; flex: 1 1 auto; min-height: 0; top: auto; }
+
+  /* The 24px inter-group gap and full-size button padding are fine for one row on desktop,
+     but get multiplied across 3-4 wrapped rows on mobile — tighten both so the topbar doesn't
+     eat most of the screen. */
+  .topbar { gap: 8px; padding: 10px 14px; }
+  .filters, .alert-filters { gap: 5px; }
+  .filter-btn, .alert-btn { padding: 5px 8px; font-size: 10px; }
+  .brand h1 { font-size: 13px; letter-spacing: 2px; }
+
+  /* .panel stays a fixed overlay regardless, so it still needs a top offset clearing the topbar —
+     just less critical to get exact since, unlike #map, a few px of overlap here is cosmetic. */
+  .panel { left: 12px; right: 12px; width: auto; top: 130px; }
   /* Pinch-to-zoom covers this on touch devices, and the control was overlapping the attribution text. */
   .leaflet-control-zoom { display: none; }
 }
 
-@media (max-width: 480px) {
-  #map { top: 245px; }
-  .panel { top: 245px; }
+@media (max-width: 360px) {
+  .panel { top: 165px; }
 }
