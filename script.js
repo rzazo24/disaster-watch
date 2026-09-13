@@ -181,9 +181,12 @@ let allEvents = []; // last fetched, unfiltered — the source of truth for re-r
 
 // ---- Map setup ----
 // zoomControl is moved to bottom-left so it doesn't sit under the fixed topbar's title.
+// attributionControl is off — see the plain #map-attribution element below instead of
+// Leaflet's own corner control.
 const map = L.map('map', {
   worldCopyJump: true,
   zoomControl: false,
+  attributionControl: false,
 }).setView([20, 10], 3);
 L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
@@ -207,20 +210,24 @@ window.addEventListener('resize', () => map.invalidateSize());
 // watermarked "API KEY REQUIRED". Esri's dark gray canvas gives a near-identical look
 // with no key and no account, keeping this project fully auth-free like its GDACS feed.
 L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-  attribution: 'Tiles &copy; Esri, HERE, Garmin, &copy; OpenStreetMap contributors',
   maxZoom: 16,
 }).addTo(map);
 
-// GDACS's terms of use require citing the source as exactly this English string — never
-// translate or reword it. Only the "Datos"/"Data" label in front of it switches with the
-// UI language, so it's managed separately from the tile layer's own (never-translated)
-// attribution above, added/removed from the map's attribution control as the language toggles.
+// Attribution is a plain element (#map-attribution, styled in style.css) instead of
+// Leaflet's own corner control. Leaflet's `.leaflet-bottom`/`.leaflet-right` positioning
+// kept producing safe-area/sizing issues on an installed PWA that the same fixed-position
+// + max(px, env(safe-area-inset-*)) pattern already used for the error/loading banners
+// doesn't have — so attribution now uses that same proven pattern instead of fighting
+// Leaflet's positioning system further. Esri/OSM's tile attribution and Leaflet's own
+// (not legally required, BSD-2 licensed, but customary) credit are static and never
+// translated, same as any map attribution; only the "Datos"/"Data" label in front of the
+// GDACS citation switches with the UI language.
 const GDACS_ATTRIBUTION = 'Global Disaster Awareness and Coordination System, GDACS';
-let currentDataAttribution = null;
 function updateDataAttribution(l) {
-  if (currentDataAttribution) map.attributionControl.removeAttribution(currentDataAttribution);
-  currentDataAttribution = `${STRINGS[l].attributionData}: ${GDACS_ATTRIBUTION}`;
-  map.attributionControl.addAttribution(currentDataAttribution);
+  document.getElementById('map-attribution').innerHTML =
+    '<a href="https://leafletjs.com" target="_blank" rel="noopener">Leaflet</a> | ' +
+    'Tiles &copy; Esri, HERE, Garmin, &copy; OpenStreetMap contributors, ' +
+    `${STRINGS[l].attributionData}: ${GDACS_ATTRIBUTION}`;
 }
 updateDataAttribution(lang);
 

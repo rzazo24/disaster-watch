@@ -143,28 +143,11 @@ html, body {
   font-family: var(--font);
 }
 
-/* Leaflet's own corner containers sit flush against the viewport edge (bottom:0/left:0/
-   right:0), which is exactly where an installed PWA's rounded corners / home-indicator
-   bar clip content — most visibly the attribution text's last word. Nudging the
-   containers themselves in by the safe-area inset (rather than fighting Leaflet's
-   already-fixed 10px control margins one by one) fixes every corner control at once. */
+/* Leaflet's own corner container sits flush against the viewport edge (bottom:0/left:0),
+   which is exactly where an installed PWA's rounded corners / home-indicator bar clip
+   content. Nudging it in by the safe-area inset keeps the zoom control clear of that. */
 .leaflet-bottom { bottom: env(safe-area-inset-bottom, 0px); }
 .leaflet-left { left: env(safe-area-inset-left, 0px); }
-.leaflet-right { right: env(safe-area-inset-right, 0px); }
-
-.leaflet-control-attribution {
-  background: rgba(10, 15, 10, 0.8) !important;
-  color: var(--text-dim) !important;
-}
-.leaflet-control-attribution a { color: var(--accent) !important; }
-
-/* Once this text can't fit on one line, an unconstrained bottom-right control box doesn't just
-   wrap — CSS shrink-to-fit stretches it to the full available width, running it into the
-   bottom-left zoom control. Capping its width keeps it a narrow, wrapped column on the right
-   instead. Below 700px the zoom control is hidden entirely, so this isn't needed there. */
-@media (min-width: 701px) and (max-width: 960px) {
-  .leaflet-control-attribution { max-width: 300px; }
-}
 
 .leaflet-control-zoom a {
   background: var(--panel-bg) !important;
@@ -355,6 +338,28 @@ html, body {
   font-size: 11px;
   z-index: 1001;
 }
+
+/* A plain fixed-position box instead of a Leaflet attribution control — same safe-area
+   pattern already proven fine for the banners above, which Leaflet's own corner-container
+   positioning kept fighting on an installed PWA. Kept deliberately small ("un cuadrado
+   pequeño"): compact type, generous but non-fixed margin, and a max-width so it wraps into
+   a narrow column instead of stretching wide, on any screen size — not just the ~700-960px
+   band the old Leaflet-control version needed a dedicated media query to handle. */
+.map-attribution {
+  position: fixed;
+  bottom: max(6px, env(safe-area-inset-bottom));
+  right: max(6px, env(safe-area-inset-right));
+  max-width: min(60vw, 260px);
+  background: rgba(10, 15, 10, 0.8);
+  color: var(--text-dim);
+  padding: 3px 6px;
+  border-radius: 4px;
+  font-size: 9px;
+  line-height: 1.4;
+  text-align: right;
+  z-index: 1001;
+}
+.map-attribution a { color: var(--accent); }
 
 .hidden { display: none !important; }
 
