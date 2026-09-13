@@ -187,6 +187,22 @@ const map = L.map('map', {
 }).setView([20, 10], 3);
 L.control.zoom({ position: 'bottomleft' }).addTo(map);
 
+// Leaflet measures #map's pixel size once at construction and only re-measures on an
+// explicit invalidateSize() call — it doesn't notice later size changes on its own. With
+// viewport-fit=cover (added for the safe-area fix), the viewport's own reported height
+// can grow slightly after that initial measurement as the browser finishes accounting for
+// the safe area, leaving Leaflet's tile layer sized to the older, shorter measurement — a
+// plain dark gap (the container's own background, no tiles) at the bottom, distinct from
+// and larger than the safe-area padding itself. Re-measuring after load and on resize
+// keeps the map's actual rendered size in sync with its container's real size.
+window.addEventListener('load', () => {
+  map.invalidateSize();
+  // iOS can finish applying the safe-area-aware viewport size slightly after 'load' fires —
+  // a second, delayed measurement catches that without needing to guess exactly when.
+  setTimeout(() => map.invalidateSize(), 300);
+});
+window.addEventListener('resize', () => map.invalidateSize());
+
 // CARTO's basemap tiles now require a (free) API key — anonymous requests come back
 // watermarked "API KEY REQUIRED". Esri's dark gray canvas gives a near-identical look
 // with no key and no account, keeping this project fully auth-free like its GDACS feed.
