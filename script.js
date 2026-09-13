@@ -91,6 +91,7 @@ const STRINGS = {
       population: 'Población en zona (est.)', score: 'Puntuación de alerta',
       link: 'Ver informe oficial GDACS →', loadingPop: 'Cargando…',
       popUnavailable: 'No disponible para este tipo de evento', dash: '—', event: 'Evento',
+      source: 'Fuente', updated: 'Actualizado',
     },
     errors: {
       http: (status) => `Error al obtener datos de GDACS (HTTP ${status}).`,
@@ -134,6 +135,7 @@ const STRINGS = {
       population: 'Population in area (est.)', score: 'Alert score',
       link: 'View official GDACS report →', loadingPop: 'Loading…',
       popUnavailable: 'Not available for this event type', dash: '—', event: 'Event',
+      source: 'Source', updated: 'Updated',
     },
     errors: {
       http: (status) => `Error fetching data from GDACS (HTTP ${status}).`,
@@ -311,6 +313,10 @@ function parseFeature(feature) {
     countryEntries,
     fromDate: toIsoUtc(pick(p, 'fromdate', 'fromDate')),
     toDate: toIsoUtc(pick(p, 'todate', 'toDate')),
+    dateModified: toIsoUtc(pick(p, 'datemodified', 'dateModified')),
+    // The monitoring agency behind the data (e.g. "NEIC", "NOAA", "GLOFAS") — not GDACS
+    // itself, which aggregates from these sources rather than measuring events directly.
+    source: pick(p, 'source'),
     description: pick(p, 'htmldescription', 'description'),
     // `url` is an object ({ geometry, report, details }) — the report link lives at `url.report`.
     reportUrl: (p.url && p.url.report) || null,
@@ -394,6 +400,8 @@ function showPanel(event) {
       [t.panel.country, escapeHtml(formatCountry(event, lang) || t.panel.dash)],
       [t.panel.from, event.fromDate ? new Date(event.fromDate).toLocaleString(t.locale) : t.panel.dash],
       [t.panel.to, event.toDate ? new Date(event.toDate).toLocaleString(t.locale) : t.panel.dash],
+      [t.panel.updated, event.dateModified ? new Date(event.dateModified).toLocaleString(t.locale) : t.panel.dash],
+      [t.panel.source, escapeHtml(event.source || t.panel.dash)],
       [t.panel.severity, escapeHtml(event.severity || t.panel.dash)],
       [t.panel.population, populationText],
       [t.panel.score, event.score !== null && event.score !== undefined ? event.score : t.panel.dash],
