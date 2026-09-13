@@ -64,6 +64,12 @@ publicados como repos independientes a modo de portfolio.
 - El botón "?" junto al título abre un panel de ayuda con el significado de cada
   nivel de alerta y tipo de evento.
 
+- Es una PWA instalable, con iconos propios para escritorio (192/512px) y móvil
+  (icono maskable para Android, `apple-touch-icon` para iOS). Un service worker
+  (`sw.js`) cachea solo el shell estático de la app (HTML/CSS/JS/iconos) para que
+  cargue al instante y funcione sin conexión — nunca cachea el feed de GDACS ni los
+  tiles del mapa, que siempre se piden en directo.
+
 ### Limitaciones conocidas
 
 - La app pagina hasta un máximo de 5 páginas (500 eventos) por refresco; en el caso
