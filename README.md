@@ -46,6 +46,15 @@ publicados como repos independientes a modo de portfolio.
 
 - El listado se refresca cada 5 minutos.
 
+- Interfaz disponible en español e inglés — el botón junto al título alterna el
+  idioma (persistido en `localStorage`), detectado por defecto a partir del idioma
+  del navegador. Solo traduce la interfaz propia: los campos que vienen de GDACS
+  (nombre del evento, país, severidad) siempre llegan en inglés, sea cual sea el
+  idioma elegido, porque la API no ofrece una variante localizada de esos datos.
+
+- El botón "?" junto al título abre un panel de ayuda con el significado de cada
+  nivel de alerta y tipo de evento.
+
 ### Limitaciones conocidas
 
 - La API de GDACS devuelve como máximo 100 eventos por petición (documentado en su
