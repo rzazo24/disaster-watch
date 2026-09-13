@@ -225,6 +225,65 @@ function toIsoUtc(raw) {
   return /[zZ]|[+-]\d{2}:?\d{2}$/.test(raw) ? raw : raw + 'Z';
 }
 
+// Country names are the one GDACS field worth translating: unlike event names or severity
+// text (free-form strings GDACS generates itself, no reasonable way to translate those),
+// countries are a bounded, well-known set — keyed by ISO3, which GDACS provides on every
+// event. Anything not in here just falls back to GDACS's own (English) name, see
+// formatCountry() below.
+const COUNTRY_NAMES_ES = {
+  AFG: 'Afganistán', ALB: 'Albania', DZA: 'Argelia', ASM: 'Samoa Americana', AND: 'Andorra',
+  AGO: 'Angola', AIA: 'Anguila', ATG: 'Antigua y Barbuda', ARG: 'Argentina', ARM: 'Armenia',
+  ABW: 'Aruba', AUS: 'Australia', AUT: 'Austria', AZE: 'Azerbaiyán', BHS: 'Bahamas',
+  BHR: 'Baréin', BGD: 'Bangladés', BRB: 'Barbados', BLR: 'Bielorrusia', BEL: 'Bélgica',
+  BLZ: 'Belice', BEN: 'Benín', BMU: 'Bermudas', BTN: 'Bután', BOL: 'Bolivia',
+  BIH: 'Bosnia y Herzegovina', BWA: 'Botsuana', BRA: 'Brasil', VGB: 'Islas Vírgenes Británicas',
+  BRN: 'Brunéi', BGR: 'Bulgaria', BFA: 'Burkina Faso', BDI: 'Burundi', KHM: 'Camboya',
+  CMR: 'Camerún', CAN: 'Canadá', CPV: 'Cabo Verde', CYM: 'Islas Caimán',
+  CAF: 'República Centroafricana', TCD: 'Chad', CHL: 'Chile', CHN: 'China', COL: 'Colombia',
+  COM: 'Comoras', COG: 'República del Congo', COD: 'República Democrática del Congo',
+  COK: 'Islas Cook', CRI: 'Costa Rica', CIV: 'Costa de Marfil', HRV: 'Croacia', CUB: 'Cuba',
+  CUW: 'Curazao', CYP: 'Chipre', CZE: 'República Checa', DNK: 'Dinamarca', DJI: 'Yibuti',
+  DMA: 'Dominica', DOM: 'República Dominicana', ECU: 'Ecuador', EGY: 'Egipto',
+  SLV: 'El Salvador', GNQ: 'Guinea Ecuatorial', ERI: 'Eritrea', EST: 'Estonia',
+  SWZ: 'Esuatini', ETH: 'Etiopía', FLK: 'Islas Malvinas', FRO: 'Islas Feroe', FJI: 'Fiyi',
+  FIN: 'Finlandia', FRA: 'Francia', PYF: 'Polinesia Francesa', GAB: 'Gabón', GMB: 'Gambia',
+  GEO: 'Georgia', DEU: 'Alemania', GHA: 'Ghana', GIB: 'Gibraltar', GRC: 'Grecia',
+  GRL: 'Groenlandia', GRD: 'Granada', GLP: 'Guadalupe', GUM: 'Guam', GTM: 'Guatemala',
+  GGY: 'Guernsey', GIN: 'Guinea', GNB: 'Guinea-Bisáu', GUY: 'Guyana', HTI: 'Haití',
+  HND: 'Honduras', HKG: 'Hong Kong', HUN: 'Hungría', ISL: 'Islandia', IND: 'India',
+  IDN: 'Indonesia', IRN: 'Irán', IRQ: 'Irak', IRL: 'Irlanda', IMN: 'Isla de Man',
+  ISR: 'Israel', ITA: 'Italia', JAM: 'Jamaica', JPN: 'Japón', JEY: 'Jersey', JOR: 'Jordania',
+  KAZ: 'Kazajistán', KEN: 'Kenia', KIR: 'Kiribati', PRK: 'Corea del Norte', KOR: 'Corea del Sur',
+  KWT: 'Kuwait', KGZ: 'Kirguistán', LAO: 'Laos', LVA: 'Letonia', LBN: 'Líbano', LSO: 'Lesoto',
+  LBR: 'Liberia', LBY: 'Libia', LIE: 'Liechtenstein', LTU: 'Lituania', LUX: 'Luxemburgo',
+  MAC: 'Macao', MDG: 'Madagascar', MWI: 'Malaui', MYS: 'Malasia', MDV: 'Maldivas',
+  MLI: 'Malí', MLT: 'Malta', MHL: 'Islas Marshall', MTQ: 'Martinica', MRT: 'Mauritania',
+  MUS: 'Mauricio', MYT: 'Mayotte', MEX: 'México', FSM: 'Micronesia', MDA: 'Moldavia',
+  MCO: 'Mónaco', MNG: 'Mongolia', MNE: 'Montenegro', MSR: 'Montserrat', MAR: 'Marruecos',
+  MOZ: 'Mozambique', MMR: 'Myanmar', NAM: 'Namibia', NRU: 'Nauru', NPL: 'Nepal',
+  NLD: 'Países Bajos', NCL: 'Nueva Caledonia', NZL: 'Nueva Zelanda', NIC: 'Nicaragua',
+  NER: 'Níger', NGA: 'Nigeria', NIU: 'Niue', MKD: 'Macedonia del Norte',
+  MNP: 'Islas Marianas del Norte', NOR: 'Noruega', OMN: 'Omán', PAK: 'Pakistán',
+  PLW: 'Palaos', PSE: 'Palestina', PAN: 'Panamá', PNG: 'Papúa Nueva Guinea', PRY: 'Paraguay',
+  PER: 'Perú', PHL: 'Filipinas', PCN: 'Islas Pitcairn', POL: 'Polonia', PRT: 'Portugal',
+  PRI: 'Puerto Rico', QAT: 'Catar', REU: 'Reunión', ROU: 'Rumanía', RUS: 'Rusia',
+  RWA: 'Ruanda', BLM: 'San Bartolomé', SHN: 'Santa Elena', KNA: 'San Cristóbal y Nieves',
+  LCA: 'Santa Lucía', MAF: 'San Martín', SPM: 'San Pedro y Miquelón',
+  VCT: 'San Vicente y las Granadinas', WSM: 'Samoa', SMR: 'San Marino',
+  STP: 'Santo Tomé y Príncipe', SAU: 'Arabia Saudita', SEN: 'Senegal', SRB: 'Serbia',
+  SYC: 'Seychelles', SLE: 'Sierra Leona', SGP: 'Singapur', SXM: 'Sint Maarten',
+  SVK: 'Eslovaquia', SVN: 'Eslovenia', SLB: 'Islas Salomón', SOM: 'Somalia',
+  ZAF: 'Sudáfrica', SSD: 'Sudán del Sur', ESP: 'España', LKA: 'Sri Lanka', SDN: 'Sudán',
+  SUR: 'Surinam', SWE: 'Suecia', CHE: 'Suiza', SYR: 'Siria', TWN: 'Taiwán',
+  TJK: 'Tayikistán', TZA: 'Tanzania', THA: 'Tailandia', TLS: 'Timor Oriental', TGO: 'Togo',
+  TKL: 'Tokelau', TON: 'Tonga', TTO: 'Trinidad y Tobago', TUN: 'Túnez', TUR: 'Turquía',
+  TKM: 'Turkmenistán', TCA: 'Islas Turcas y Caicos', TUV: 'Tuvalu', UGA: 'Uganda',
+  UKR: 'Ucrania', ARE: 'Emiratos Árabes Unidos', GBR: 'Reino Unido', USA: 'Estados Unidos',
+  URY: 'Uruguay', UZB: 'Uzbekistán', VUT: 'Vanuatu', VAT: 'Ciudad del Vaticano',
+  VEN: 'Venezuela', VNM: 'Vietnam', VIR: 'Islas Vírgenes de EE. UU.', WLF: 'Wallis y Futuna',
+  ESH: 'Sáhara Occidental', YEM: 'Yemen', ZMB: 'Zambia', ZWE: 'Zimbabue',
+};
+
 function parseFeature(feature) {
   const p = feature.properties || {};
   const coords = feature.geometry && feature.geometry.coordinates;
@@ -232,9 +291,12 @@ function parseFeature(feature) {
 
   const eventId = pick(p, 'eventid', 'eventId');
   const episodeId = pick(p, 'episodeid', 'episodeId') || '0';
-  const countries = Array.isArray(p.affectedcountries)
-    ? p.affectedcountries.map((c) => c.countryname).filter(Boolean)
-    : [];
+  // Kept as {iso3, name} pairs rather than a single joined string, since which name to
+  // display (GDACS's English one, or COUNTRY_NAMES_ES's translation) depends on the UI
+  // language — resolved at render time by formatCountry(), not baked in here.
+  const countryEntries = Array.isArray(p.affectedcountries) && p.affectedcountries.length
+    ? p.affectedcountries.map((c) => ({ iso3: c.iso3, name: c.countryname })).filter((c) => c.name)
+    : (pick(p, 'country') ? [{ iso3: p.iso3, name: pick(p, 'country') }] : []);
 
   return {
     id: eventId + '-' + episodeId,
@@ -246,7 +308,7 @@ function parseFeature(feature) {
     name: pick(p, 'name', 'eventname', 'eventName'),
     level: normalizeLevel(pick(p, 'alertlevel', 'alertLevel')),
     score: pick(p, 'alertscore', 'alertScore'),
-    country: countries.length ? countries.join(', ') : pick(p, 'country', 'iso3'),
+    countryEntries,
     fromDate: toIsoUtc(pick(p, 'fromdate', 'fromDate')),
     toDate: toIsoUtc(pick(p, 'todate', 'toDate')),
     description: pick(p, 'htmldescription', 'description'),
@@ -256,6 +318,16 @@ function parseFeature(feature) {
     lon: coords[0],
     lat: coords[1],
   };
+}
+
+// English name (as GDACS provides it) unless we're in Spanish mode and have a translation
+// for that country's ISO3 code — falls back to the original name for anything not in
+// COUNTRY_NAMES_ES, so an unmapped/unknown code never renders as blank or "undefined".
+function formatCountry(event, l) {
+  if (!event.countryEntries.length) return null;
+  return event.countryEntries
+    .map((c) => (l === 'es' && COUNTRY_NAMES_ES[c.iso3]) || c.name)
+    .join(', ');
 }
 
 function markerHtml(event) {
@@ -319,7 +391,7 @@ function showPanel(event) {
   const render = (populationText) => {
     const rows = [
       [t.panel.type, meta.label],
-      [t.panel.country, escapeHtml(event.country || t.panel.dash)],
+      [t.panel.country, escapeHtml(formatCountry(event, lang) || t.panel.dash)],
       [t.panel.from, event.fromDate ? new Date(event.fromDate).toLocaleString(t.locale) : t.panel.dash],
       [t.panel.to, event.toDate ? new Date(event.toDate).toLocaleString(t.locale) : t.panel.dash],
       [t.panel.severity, escapeHtml(event.severity || t.panel.dash)],
