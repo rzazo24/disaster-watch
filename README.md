@@ -20,6 +20,8 @@ publicados como repos independientes a modo de portfolio.
 
 **Demo en vivo:** https://disaster-watch-seven.vercel.app/
 
+![Captura de Disaster Watch: mapa oscuro con marcadores de alertas GDACS en todo el mundo](screenshot.png)
+
 ## Cómo funciona
 
 - El mapa (estilo oscuro, tiles de Esri `World_Dark_Gray_Base`) se centra en el mundo
