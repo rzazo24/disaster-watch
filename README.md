@@ -8,9 +8,12 @@
 ![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat)
 
 Mapa en tiempo (casi) real de alertas globales de catástrofes: terremotos, ciclones
-tropicales, inundaciones, erupciones volcánicas, incendios forestales y sequías.
-Sin backend, sin API keys, sin build step — HTML/CSS/JS puro con [Leaflet](https://leafletjs.com/)
-cargado por CDN, pensado para desplegarse como sitio estático.
+tropicales, inundaciones, erupciones volcánicas, incendios forestales y sequías. Usa los
+datos públicos de [GDACS](https://www.gdacs.org/) (Global Disaster Awareness and
+Coordination System, un marco de cooperación entre Naciones Unidas y la Comisión
+Europea) — sin API keys, sin backend, sin build step: HTML/CSS/JS puro con
+[Leaflet](https://leafletjs.com/) cargado por CDN, pensado para desplegarse como sitio
+estático.
 
 Forma parte de una serie de proyectos pequeños que exploran APIs públicas gratuitas,
 publicados como repos independientes a modo de portfolio.
