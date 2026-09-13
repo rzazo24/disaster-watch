@@ -87,6 +87,11 @@ publicados como repos independientes a modo de portfolio.
 - El botón "?" junto al título abre un panel de ayuda con el significado de cada
   nivel de alerta y tipo de evento.
 
+- El botón ⌖, junto al control de zoom, centra el mapa en la ubicación actual del
+  navegador (vía la Geolocation API) y marca el punto con un círculo azul y su radio
+  de precisión. Requiere permiso de localización del navegador; si se deniega o no
+  está disponible, se muestra un aviso en vez de fallar en silencio.
+
 - Es una PWA instalable, con iconos propios para escritorio (192/512px) y móvil
   (icono maskable para Android, `apple-touch-icon` para iOS). Un service worker
   (`sw.js`) cachea solo el shell estático de la app (HTML/CSS/JS/iconos) para que

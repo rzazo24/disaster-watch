@@ -156,11 +156,13 @@ html, body {
 .leaflet-bottom { bottom: env(safe-area-inset-bottom, 0px); }
 .leaflet-left { left: env(safe-area-inset-left, 0px); }
 
-.leaflet-control-zoom a {
+.leaflet-control-zoom a,
+.locate-control a {
   background: var(--panel-bg) !important;
   color: var(--accent) !important;
   border-color: var(--grid) !important;
 }
+.locate-control a { font-size: 16px; }
 
 .leaflet-popup-content-wrapper {
   background: var(--panel-bg) !important;

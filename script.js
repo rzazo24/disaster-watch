@@ -68,6 +68,7 @@ const STRINGS = {
     helpAria: 'Ayuda',
     closeAria: 'Cerrar',
     langAria: 'Cambiar idioma',
+    locateAria: 'Centrar en mi ubicación',
     attributionData: 'Datos',
     help: {
       title: 'Cómo leer el mapa',
@@ -85,6 +86,7 @@ const STRINGS = {
         'El mismo clic dibuja, si existe, la forma real del evento en el mapa — área de una inundación, trayectoria y cono de un ciclón — en vez de solo el punto del marcador.',
         'El mapa se actualiza solo cada 5 minutos — el botón ↻ junto al título fuerza una actualización inmediata.',
         'El botón ES/EN junto al título cambia el idioma de toda la interfaz.',
+        'El botón ⌖ junto al zoom centra el mapa en tu ubicación actual (requiere permiso de localización del navegador).',
       ],
       dataHeading: 'Datos',
       dataText: (link) => `De ${link} (ONU + Comisión Europea), citado tal y como exigen sus términos de uso: "Global Disaster Awareness and Coordination System, GDACS". La API limita cada consulta a 100 eventos, así que en días de mucha actividad alguno puede quedar fuera. Tiles del mapa de Esri, HERE, Garmin y colaboradores de OpenStreetMap.`,
@@ -102,6 +104,8 @@ const STRINGS = {
       cors: 'No se pudo conectar con la API de GDACS. Si ves este error de forma persistente, ' +
         'es probable que el endpoint no permita peticiones directas desde el navegador (CORS) ' +
         'y haga falta un pequeño proxy.',
+      geoUnsupported: 'Tu navegador no admite geolocalización.',
+      geoDenied: 'No se pudo obtener tu ubicación. Revisa los permisos de localización del navegador.',
     },
     locale: 'es-ES',
   },
@@ -116,6 +120,7 @@ const STRINGS = {
     helpAria: 'Help',
     closeAria: 'Close',
     langAria: 'Switch language',
+    locateAria: 'Center on my location',
     attributionData: 'Data',
     help: {
       title: 'How to read the map',
@@ -133,6 +138,7 @@ const STRINGS = {
         "That same click also draws the event's real footprint on the map when available — a flood's extent, a cyclone's track and cone — instead of just the marker's point.",
         'The map refreshes automatically every 5 minutes — the ↻ button next to the title forces an immediate one.',
         'The ES/EN button next to the title switches the whole interface\'s language.',
+        'The ⌖ button next to zoom centers the map on your current location (needs the browser\'s location permission).',
       ],
       dataHeading: 'Data',
       dataText: (link) => `From ${link} (UN + European Commission), cited as its terms of use require: "Global Disaster Awareness and Coordination System, GDACS". The API caps each query at 100 events, so on high-activity days some may be left out. Map tiles by Esri, HERE, Garmin and OpenStreetMap contributors.`,
@@ -149,6 +155,8 @@ const STRINGS = {
       http: (status) => `Error fetching data from GDACS (HTTP ${status}).`,
       cors: "Couldn't connect to the GDACS API. If this keeps happening, the endpoint is probably " +
         'blocking direct browser requests (CORS) and this would need a small proxy.',
+      geoUnsupported: "Your browser doesn't support geolocation.",
+      geoDenied: "Couldn't get your location. Check the browser's location permission.",
     },
     locale: 'en-GB',
   },
@@ -193,6 +201,58 @@ const map = L.map('map', {
   attributionControl: false,
 }).setView([20, 10], 3);
 L.control.zoom({ position: 'bottomleft' }).addTo(map);
+
+// "Locate me" as a Leaflet corner control (stacks below zoom, same leaflet-bar family) rather
+// than a topbar button — it's a map action like zoom, not an app-level one like refresh/help/
+// lang. Geolocation itself needs no state beyond the one marker/circle pair below, so a plain
+// L.Control.extend() is simpler here than pulling in a plugin (e.g. L.Control.Locate) for what's
+// ultimately a single getCurrentPosition() call.
+let userLocationMarker = null;
+let userAccuracyCircle = null;
+
+function locateUser() {
+  if (!navigator.geolocation) {
+    showError(STRINGS[lang].errors.geoUnsupported);
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const { latitude, longitude, accuracy } = pos.coords;
+      hideError();
+      if (userLocationMarker) map.removeLayer(userLocationMarker);
+      if (userAccuracyCircle) map.removeLayer(userAccuracyCircle);
+      // Not added to markerCluster: this is the viewer's own position, not a GDACS event —
+      // clustering it in with disaster markers would misrepresent it as one.
+      userAccuracyCircle = L.circle([latitude, longitude], {
+        radius: accuracy, color: '#4aa8ff', weight: 1, fillColor: '#4aa8ff', fillOpacity: 0.1,
+      }).addTo(map);
+      userLocationMarker = L.circleMarker([latitude, longitude], {
+        radius: 7, color: '#0a0f0a', weight: 2, fillColor: '#4aa8ff', fillOpacity: 1,
+      }).addTo(map);
+      map.flyTo([latitude, longitude], Math.max(map.getZoom(), 8));
+    },
+    () => showError(STRINGS[lang].errors.geoDenied),
+    { enableHighAccuracy: false, timeout: 10000, maximumAge: 60000 }
+  );
+}
+
+const LocateControl = L.Control.extend({
+  options: { position: 'bottomleft' },
+  onAdd: function () {
+    const container = L.DomUtil.create('div', 'leaflet-bar leaflet-control locate-control');
+    const link = L.DomUtil.create('a', '', container);
+    link.href = '#';
+    link.innerHTML = '⌖';
+    link.setAttribute('role', 'button');
+    link.setAttribute('aria-label', STRINGS[lang].locateAria);
+    this._link = link;
+    L.DomEvent.disableClickPropagation(container);
+    L.DomEvent.on(link, 'click', L.DomEvent.stop);
+    L.DomEvent.on(link, 'click', locateUser);
+    return container;
+  },
+});
+const locateControl = new LocateControl().addTo(map);
 
 // Leaflet measures #map's pixel size once at construction and only re-measures on an
 // explicit invalidateSize() call — it doesn't notice later size changes on its own. With
@@ -636,6 +696,10 @@ function applyLanguage(l) {
   const langBtn = document.getElementById('lang-toggle');
   langBtn.textContent = lang === 'es' ? 'EN' : 'ES';
   langBtn.setAttribute('aria-label', t.langAria);
+
+  // Not markup-driven like the data-i18n-aria elements above — this control's <a> is built by
+  // Leaflet at construction time, so its aria-label is kept in sync here instead.
+  if (locateControl._link) locateControl._link.setAttribute('aria-label', t.locateAria);
 
   updateDataAttribution(lang);
   renderHelpPanel();
