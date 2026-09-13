@@ -44,7 +44,11 @@ publicados como repos independientes a modo de portfolio.
   de evento el panel indica honestamente que el dato no está disponible en vez de
   inventar un placeholder.
 
-- El listado se refresca cada 5 minutos.
+- El listado se refresca cada 5 minutos, paginando la consulta a GDACS (que limita cada
+  petición a 100 eventos) hasta agotar los eventos actualmente activos — normalmente
+  entre 200 y 300 en total, contando sequías y otros eventos de larga duración. Sin esto,
+  eventos reales quedaban fuera solo por venir después en el orden por fecha (así se
+  detectó el caso que motivó este arreglo: una inundación en España en la página 2).
 
 - Interfaz disponible en español e inglés — el botón junto al título alterna el
   idioma (persistido en `localStorage`), detectado por defecto a partir del idioma
@@ -57,11 +61,14 @@ publicados como repos independientes a modo de portfolio.
 
 ### Limitaciones conocidas
 
-- La API de GDACS devuelve como máximo 100 eventos por petición (documentado en su
-  [quickstart](https://www.gdacs.org/Documents/2025/GDACS_API_quickstart_v2.pdf)).
-  En días de mucha actividad (por ejemplo, temporada de incendios) es posible que
-  queden eventos fuera de ese límite — no hay paginación implementada.
+- La app pagina hasta un máximo de 5 páginas (500 eventos) por refresco; en el caso
+  extremo de que hubiera más de 500 eventos activos simultáneos a la vez, los eventos
+  más antiguos (dentro de los activos) quedarían fuera.
 - La población afectada estimada solo está disponible para terremotos.
+- GDACS no es un listado exhaustivo de todos los desastres del mundo: su alcance son
+  eventos que podrían requerir asistencia internacional. Por eso, por ejemplo, no todos
+  los incendios forestales conocidos aparecen — GDACS no rastrea todos los incendios,
+  solo los que entran en ese criterio.
 
 ## Fuente de datos y atribución
 
