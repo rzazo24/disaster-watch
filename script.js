@@ -67,6 +67,7 @@ const STRINGS = {
     helpAria: 'Ayuda',
     closeAria: 'Cerrar',
     langAria: 'Cambiar idioma',
+    attributionData: 'Datos',
     help: {
       title: 'Cómo leer el mapa',
       levelsHeading: 'Niveles de alerta',
@@ -109,6 +110,7 @@ const STRINGS = {
     helpAria: 'Help',
     closeAria: 'Close',
     langAria: 'Switch language',
+    attributionData: 'Data',
     help: {
       title: 'How to read the map',
       levelsHeading: 'Alert levels',
@@ -183,9 +185,22 @@ L.control.zoom({ position: 'bottomleft' }).addTo(map);
 // watermarked "API KEY REQUIRED". Esri's dark gray canvas gives a near-identical look
 // with no key and no account, keeping this project fully auth-free like its GDACS feed.
 L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
-  attribution: 'Tiles &copy; Esri, HERE, Garmin, &copy; OpenStreetMap contributors — Datos: Global Disaster Awareness and Coordination System, GDACS',
+  attribution: 'Tiles &copy; Esri, HERE, Garmin, &copy; OpenStreetMap contributors',
   maxZoom: 16,
 }).addTo(map);
+
+// GDACS's terms of use require citing the source as exactly this English string — never
+// translate or reword it. Only the "Datos"/"Data" label in front of it switches with the
+// UI language, so it's managed separately from the tile layer's own (never-translated)
+// attribution above, added/removed from the map's attribution control as the language toggles.
+const GDACS_ATTRIBUTION = 'Global Disaster Awareness and Coordination System, GDACS';
+let currentDataAttribution = null;
+function updateDataAttribution(l) {
+  if (currentDataAttribution) map.attributionControl.removeAttribution(currentDataAttribution);
+  currentDataAttribution = `${STRINGS[l].attributionData}: ${GDACS_ATTRIBUTION}`;
+  map.attributionControl.addAttribution(currentDataAttribution);
+}
+updateDataAttribution(lang);
 
 // ---- Helpers to defensively read GDACS properties (field casing has varied across docs/versions) ----
 function pick(props, ...keys) {
@@ -391,6 +406,7 @@ function applyLanguage(l) {
   langBtn.textContent = lang === 'es' ? 'EN' : 'ES';
   langBtn.setAttribute('aria-label', t.langAria);
 
+  updateDataAttribution(lang);
   renderHelpPanel();
 
   // Re-render the event panel in the new language, but only if it's actually open —
