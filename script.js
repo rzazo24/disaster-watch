@@ -690,4 +690,27 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch((err) => console.error('SW registration failed', err));
   });
+
+  // sw.js calls skipWaiting()/clients.claim(), so a newly-deployed version activates and
+  // takes control of an already-open tab right away — but that tab is still running the
+  // OLD html/css/js already loaded into memory until it reloads. "controllerchange" fires
+  // exactly when that takeover happens, so reload once to actually pick up the new shell;
+  // otherwise a PWA left open for a while would silently keep running stale code
+  // indefinitely; guarded against firing twice since the event can in principle repeat.
+  let reloadedForUpdate = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (reloadedForUpdate) return;
+    reloadedForUpdate = true;
+    window.location.reload();
+  });
+
+  // The browser only checks sw.js for changes on its own schedule (roughly every 24h, or
+  // on navigation) — for a PWA that gets reopened from the background rather than
+  // re-navigated to, that can leave it stale far longer than intended. Re-checking
+  // whenever the tab becomes visible again catches updates much sooner.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+      navigator.serviceWorker.getRegistration().then((reg) => reg && reg.update());
+    }
+  });
 }
