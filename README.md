@@ -42,7 +42,8 @@ publicados como repos independientes a modo de portfolio.
   barra superior filtran por tipo y por nivel sin recargar la página.
 
 - Al hacer clic en un marcador se abre un panel lateral con el detalle del evento
-  (país, fechas, severidad, puntuación de alerta, enlace al informe oficial). La
+  (país, fechas, última actualización, fuente de monitorización —p. ej. NEIC, NOAA,
+  GLOFAS—, severidad, puntuación de alerta, enlace al informe oficial). La
   población estimada en la zona se pide aparte, bajo demanda, a un segundo endpoint
   de detalle por episodio — el endpoint de lista no incluye ese dato. GDACS solo lo
   expone de forma consistente para terremotos (`rapidpop`); para el resto de tipos
