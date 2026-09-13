@@ -13,59 +13,40 @@
   <header class="topbar">
     <div class="brand">
       <span class="brand-dot"></span>
-      <h1>DISASTER&nbsp;WATCH</h1>
-      <button id="help-open" class="help-btn" aria-label="Ayuda">?</button>
+      <h1 data-i18n="title">DISASTER&nbsp;WATCH</h1>
+      <button id="help-open" class="help-btn" data-i18n-aria="helpAria" aria-label="Ayuda">?</button>
+      <button id="lang-toggle" class="help-btn lang-btn" aria-label="Change language">EN</button>
     </div>
     <div class="filters">
-      <button class="filter-btn active" data-type="all">Todos</button>
-      <button class="filter-btn active" data-type="EQ">Terremotos</button>
-      <button class="filter-btn active" data-type="TC">Ciclones</button>
-      <button class="filter-btn active" data-type="FL">Inundaciones</button>
-      <button class="filter-btn active" data-type="VO">Volcanes</button>
-      <button class="filter-btn active" data-type="DR">Sequías</button>
-      <button class="filter-btn active" data-type="WF">Incendios</button>
+      <button class="filter-btn active" data-type="all" data-i18n="filters.all">Todos</button>
+      <button class="filter-btn active" data-type="EQ" data-i18n="filters.EQ">Terremotos</button>
+      <button class="filter-btn active" data-type="TC" data-i18n="filters.TC">Ciclones</button>
+      <button class="filter-btn active" data-type="FL" data-i18n="filters.FL">Inundaciones</button>
+      <button class="filter-btn active" data-type="VO" data-i18n="filters.VO">Volcanes</button>
+      <button class="filter-btn active" data-type="DR" data-i18n="filters.DR">Sequías</button>
+      <button class="filter-btn active" data-type="WF" data-i18n="filters.WF">Incendios</button>
     </div>
     <div class="alert-filters">
-      <button class="alert-btn active" data-level="green">Verde</button>
-      <button class="alert-btn active" data-level="orange">Naranja</button>
-      <button class="alert-btn active" data-level="red">Rojo</button>
+      <button class="alert-btn active" data-level="green" data-i18n="levels.green">Verde</button>
+      <button class="alert-btn active" data-level="orange" data-i18n="levels.orange">Naranja</button>
+      <button class="alert-btn active" data-level="red" data-i18n="levels.red">Rojo</button>
     </div>
   </header>
 
   <main id="map"></main>
 
   <aside id="panel" class="panel hidden">
-    <button id="panel-close" aria-label="Cerrar">×</button>
+    <button id="panel-close" data-i18n-aria="closeAria" aria-label="Cerrar">×</button>
     <div id="panel-content"></div>
   </aside>
 
   <aside id="help-panel" class="panel hidden">
-    <button id="help-close" aria-label="Cerrar">×</button>
-    <div class="help-content">
-      <p class="panel-title">Cómo leer el mapa</p>
-
-      <h3>Niveles de alerta</h3>
-      <p class="help-row"><span class="panel-badge level-green">verde</span> Impacto menor, no se espera que requiera asistencia internacional.</p>
-      <p class="help-row"><span class="panel-badge level-orange">naranja</span> Impacto medio, podría requerir cierta asistencia internacional.</p>
-      <p class="help-row"><span class="panel-badge level-red">rojo</span> Impacto alto, probablemente requiera una respuesta internacional importante.</p>
-
-      <h3>Tipos de evento</h3>
-      <div id="help-types"></div>
-
-      <h3>Uso</h3>
-      <ul>
-        <li>Los botones de la barra superior filtran por tipo y por nivel — clic para activar o desactivar.</li>
-        <li>Clic en un marcador abre el detalle: país, fechas, severidad, población estimada (solo disponible para terremotos) y enlace al informe oficial de GDACS.</li>
-        <li>El mapa se actualiza solo cada 5 minutos.</li>
-      </ul>
-
-      <h3>Datos</h3>
-      <p>De <a href="https://www.gdacs.org/" target="_blank" rel="noopener">GDACS</a> (ONU + Comisión Europea). La API limita cada consulta a 100 eventos, así que en días de mucha actividad alguno puede quedar fuera.</p>
-    </div>
+    <button id="help-close" data-i18n-aria="closeAria" aria-label="Cerrar">×</button>
+    <div id="help-body" class="help-content"></div>
   </aside>
 
   <div id="error-banner" class="error-banner hidden"></div>
-  <div id="loading-banner" class="loading-banner">Cargando eventos…</div>
+  <div id="loading-banner" class="loading-banner" data-i18n="loading">Cargando eventos…</div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="script.js"></script>
