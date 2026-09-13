@@ -65,6 +65,10 @@ publicados como repos independientes a modo de portfolio.
   eventos reales quedaban fuera solo por venir después en el orden por fecha (así se
   detectó el caso que motivó este arreglo: una inundación en España en la página 2).
 
+- El botón ↻ junto al título fuerza una actualización inmediata. Como PWA instalada no
+  tiene barra de navegador que recargar, y en iOS tampoco hay gesto fiable de
+  "pull to refresh", así que es la única forma de forzarla ahí.
+
 - Interfaz disponible en español e inglés — el botón junto al título alterna el
   idioma (persistido en `localStorage`), detectado por defecto a partir del idioma
   del navegador. Solo traduce la interfaz propia y, mediante un diccionario por
