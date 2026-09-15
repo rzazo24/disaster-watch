@@ -197,6 +197,18 @@ const STRINGS = {
       ],
       dataHeading: 'Datos',
       dataText: (link) => `De ${link} (ONU + Comisión Europea), citado tal y como exigen sus términos de uso: "Global Disaster Awareness and Coordination System, GDACS". La API limita cada consulta a 100 eventos, así que en días de mucha actividad alguno puede quedar fuera. Tiles del mapa de Esri, HERE, Garmin y colaboradores de OpenStreetMap. Los sismos locales (botón "Sismos locales") vienen de EMSC (Euro-Mediterranean Seismological Centre), que agrega datos de redes nacionales como el IGN.`,
+      apiStatusHeading: 'Estado de las APIs',
+      apiStatusIntro: 'Comprueba en directo si un fallo de carga es de las APIs externas (GDACS, EMSC) y no de esta app.',
+      apiStatusCheckBtn: 'Comprobar ahora',
+      apiStatusChecking: 'Comprobando…',
+      apiStatusOk: 'OK',
+      apiStatusFail: 'Error',
+      apiStatusTimeout: 'Tiempo de espera agotado',
+      apiStatusLabels: {
+        gdacsPage1: 'GDACS (página 1)',
+        gdacsPage2: 'GDACS (página 2)',
+        emsc: 'EMSC (sismos locales)',
+      },
     },
     panel: {
       type: 'Tipo', country: 'País', from: 'Desde', to: 'Hasta', severity: 'Severidad',
@@ -262,6 +274,18 @@ const STRINGS = {
       ],
       dataHeading: 'Data',
       dataText: (link) => `From ${link} (UN + European Commission), cited as its terms of use require: "Global Disaster Awareness and Coordination System, GDACS". The API caps each query at 100 events, so on high-activity days some may be left out. Map tiles by Esri, HERE, Garmin and OpenStreetMap contributors. Local quakes ("Local quakes" button) come from EMSC (Euro-Mediterranean Seismological Centre), which aggregates national networks such as Spain's IGN.`,
+      apiStatusHeading: 'API status',
+      apiStatusIntro: "Check live whether a loading failure is on the external APIs' side (GDACS, EMSC) rather than this app's.",
+      apiStatusCheckBtn: 'Check now',
+      apiStatusChecking: 'Checking…',
+      apiStatusOk: 'OK',
+      apiStatusFail: 'Error',
+      apiStatusTimeout: 'Timed out',
+      apiStatusLabels: {
+        gdacsPage1: 'GDACS (page 1)',
+        gdacsPage2: 'GDACS (page 2)',
+        emsc: 'EMSC (local quakes)',
+      },
     },
     panel: {
       type: 'Type', country: 'Country', from: 'From', to: 'To', severity: 'Severity',
@@ -882,6 +906,75 @@ function hideEventPanel() {
 document.getElementById('panel-close').addEventListener('click', hideEventPanel);
 
 // ---- Help panel ----
+
+// A direct way to answer "is it the API or the app" (came up live: a viewer saw the
+// connection error, and there was no way to tell from inside the app itself whether GDACS
+// was actually down or something here was broken). Checks the *exact* URLs fetchEvents()/
+// fetchLocalQuakes() themselves build (buildUrl()/buildEmscUrl() reused, not simplified
+// stand-ins), so a green result here is a real guarantee the app's own next fetch would
+// succeed too — not just a ping against some unrelated health-check endpoint. On demand
+// only, via a button — this is a diagnostic aid for an occasional problem, not something
+// worth firing automatically every time the help panel opens.
+const API_STATUS_TIMEOUT_MS = 15000;
+
+function timedFetch(url) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), API_STATUS_TIMEOUT_MS);
+  const start = performance.now();
+  return fetch(url, { signal: controller.signal, cache: 'no-store' })
+    .then((res) => {
+      clearTimeout(timer);
+      return { ok: res.ok, status: res.status, ms: Math.round(performance.now() - start) };
+    })
+    .catch((err) => {
+      clearTimeout(timer);
+      return { ok: false, status: null, ms: Math.round(performance.now() - start), timedOut: err.name === 'AbortError' };
+    });
+}
+
+// Page 1 and page 2 are checked separately, not just page 1 alone — GDACS's own
+// un-paginated page-1 endpoint is documented to sometimes be far slower than its paginated
+// siblings, so seeing "page 1 slow/failing, page 2 fine" versus "both down" actually
+// distinguishes that known page-1-specific flakiness from a real full outage.
+function apiStatusEndpoints() {
+  const startIso = new Date(Date.now() - EMSC_DAYS * 86400000).toISOString().slice(0, 19);
+  return [
+    { key: 'gdacsPage1', url: buildUrl(EVENT_TYPES, ['green', 'orange', 'red'], 1) },
+    { key: 'gdacsPage2', url: buildUrl(EVENT_TYPES, ['green', 'orange', 'red'], 2) },
+    { key: 'emsc', url: buildEmscUrl(EMSC_REGIONS[0], startIso) },
+  ];
+}
+
+async function runApiStatusCheck() {
+  const t = STRINGS[lang];
+  const btn = document.getElementById('api-status-check-btn');
+  const container = document.getElementById('api-status-results');
+  const endpoints = apiStatusEndpoints();
+
+  btn.disabled = true;
+  container.innerHTML = endpoints.map((e) => `
+    <div class="panel-row">
+      <span class="k">${t.help.apiStatusLabels[e.key]}</span>
+      <span class="v" data-key="${e.key}">${t.help.apiStatusChecking}</span>
+    </div>
+  `).join('');
+
+  const results = await Promise.all(endpoints.map((e) => timedFetch(e.url)));
+
+  endpoints.forEach((e, i) => {
+    const r = results[i];
+    const el = container.querySelector(`[data-key="${e.key}"]`);
+    el.textContent = r.ok
+      ? `${t.help.apiStatusOk} · HTTP ${r.status} · ${r.ms} ms`
+      : r.timedOut
+        ? t.help.apiStatusTimeout
+        : `${t.help.apiStatusFail}${r.status ? ` · HTTP ${r.status}` : ''} · ${r.ms} ms`;
+    el.classList.add(r.ok ? 'api-status-ok' : 'api-status-fail');
+  });
+
+  btn.disabled = false;
+}
+
 function renderHelpPanel() {
   const t = STRINGS[lang];
   const levelRow = (level) =>
@@ -900,7 +993,16 @@ function renderHelpPanel() {
     <ul>${t.help.usage.map((line) => `<li>${line}</li>`).join('')}</ul>
     <h3>${t.help.dataHeading}</h3>
     <p>${t.help.dataText('<a href="https://www.gdacs.org/" target="_blank" rel="noopener">GDACS</a>')}</p>
+    <h3>${t.help.apiStatusHeading}</h3>
+    <p>${t.help.apiStatusIntro}</p>
+    <button id="api-status-check-btn" class="help-check-btn">${t.help.apiStatusCheckBtn}</button>
+    <div id="api-status-results"></div>
   `;
+  // help-body's innerHTML (including this button) is rebuilt from scratch every time this
+  // function runs — including on a plain language toggle while help is already open — so
+  // the click handler has to be re-attached here each time rather than once at load, or a
+  // re-render would silently leave the new button dead.
+  document.getElementById('api-status-check-btn').addEventListener('click', runApiStatusCheck);
 }
 
 document.getElementById('help-open').addEventListener('click', () => {

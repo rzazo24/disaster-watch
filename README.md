@@ -89,7 +89,9 @@ publicados como repos independientes a modo de portfolio.
   API no ofrece traducido.
 
 - El botón "?" junto al título abre un panel de ayuda con el significado de cada
-  nivel de alerta y tipo de evento.
+  nivel de alerta y tipo de evento. Incluye un apartado de "Estado de las APIs" con
+  un botón para comprobar en directo si GDACS y EMSC responden — útil para saber si un
+  fallo de carga es cosa de estas APIs externas o de la propia app.
 
 - El botón "Sismos locales" (desactivado por defecto) añade terremotos menores en España
   —magnitud hasta 4,5, que GDACS no recoge por ser un servicio centrado en catástrofes con

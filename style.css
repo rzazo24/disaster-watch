@@ -414,6 +414,27 @@ html, body {
 }
 .help-type-row .icon { width: 16px; text-align: center; }
 
+/* Deliberately its own class, not a reuse of .filter-btn — that class is read by the type
+   filters' own click handlers (document.querySelectorAll('.filter-btn')), which would
+   wrongly sweep this button in too since it shares nothing else with them (same class of
+   accidental coupling .local-quake-btn was kept separate from, for the same reason). */
+#api-status-check-btn.help-check-btn {
+  font-family: var(--font);
+  font-size: 11px;
+  background: var(--panel-bg);
+  color: var(--text-dim);
+  border: 1px solid var(--grid);
+  border-radius: 4px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+#api-status-check-btn.help-check-btn:hover { border-color: var(--accent); color: var(--text); }
+#api-status-check-btn.help-check-btn:disabled { opacity: 0.5; cursor: default; }
+
+#api-status-results { margin-top: 4px; }
+#api-status-results .v.api-status-ok { color: var(--green); }
+#api-status-results .v.api-status-fail { color: var(--red); }
+
 .error-banner {
   position: fixed;
   /* A bit above the true edge so it clears #map-attribution below it (that one is a
