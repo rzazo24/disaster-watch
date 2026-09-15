@@ -1235,6 +1235,8 @@ if ('serviceWorker' in navigator) {
   // SW/cache mechanism needed to change for this — the new SW is already active and will
   // serve the next real reload regardless of when the user clicks, so there's no
   // correctness reason to force it immediately.
+  const showUpdateBanner = () => document.getElementById('update-banner').classList.remove('hidden');
+
   navigator.serviceWorker.addEventListener('controllerchange', () => {
     if (!hadControllerAtLoad) {
       // The page's first-ever controller, not a swap from one version to another — nothing
@@ -1242,8 +1244,21 @@ if ('serviceWorker' in navigator) {
       hadControllerAtLoad = true;
       return;
     }
-    document.getElementById('update-banner').classList.remove('hidden');
+    showUpdateBanner();
   });
+
+  // controllerchange alone covers only a change to sw.js's own bytes (a new worker
+  // installing) — it does NOT fire for an ordinary script.js/style.css/index.html edit,
+  // which is the far more common deploy and is otherwise invisible to an already-open tab:
+  // sw.js's own stale-while-revalidate logic already fetches and caches the new shell in
+  // the background, but nothing told the page a fresher copy now exists. sw.js's fetch
+  // handler now posts { type: 'shell-updated' } when its background revalidation fetch
+  // finds a shell file's Last-Modified differs from what was cached — this is what
+  // actually catches that far more common case.
+  navigator.serviceWorker.addEventListener('message', (event) => {
+    if (event.data && event.data.type === 'shell-updated') showUpdateBanner();
+  });
+
   document.getElementById('update-reload-btn').addEventListener('click', () => {
     window.location.reload();
   });

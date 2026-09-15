@@ -67,7 +67,22 @@ self.addEventListener('fetch', (event) => {
       cache.match(event.request).then((cached) => {
         const network = fetch(event.request.url, { cache: 'reload' })
           .then(async (response) => {
+            // Comparing against the *previously cached* copy's own Last-Modified (not
+            // anything from this response alone) is what actually detects "the shell
+            // changed" — which, per the comment above, is the common case (any
+            // script.js/style.css/index.html edit) and is otherwise invisible to the page:
+            // it's served fine on the *next* visit via this same cache, but nothing tells
+            // the *current* tab a fresher copy now exists. Guarded on `cached` existing
+            // (it won't yet for a request racing the very first install) and on both
+            // responses actually carrying the header (a proxy/CDN could strip it) so a
+            // missing header can't be misread as "changed" on every single request.
+            const changed = cached && response.headers.get('Last-Modified')
+              && response.headers.get('Last-Modified') !== cached.headers.get('Last-Modified');
             await cache.put(event.request, response.clone());
+            if (changed) {
+              const clients = await self.clients.matchAll();
+              clients.forEach((client) => client.postMessage({ type: 'shell-updated' }));
+            }
             return response;
           })
           .catch(() => cached);
