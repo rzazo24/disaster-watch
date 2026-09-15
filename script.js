@@ -209,6 +209,8 @@ const STRINGS = {
         gdacsPage2: 'GDACS (página 2)',
         emsc: 'EMSC (sismos locales)',
       },
+      codeHeading: 'Código',
+      codeText: (link) => `Esta app es de código abierto: ${link}.`,
     },
     panel: {
       type: 'Tipo', country: 'País', from: 'Desde', to: 'Hasta', severity: 'Severidad',
@@ -286,6 +288,8 @@ const STRINGS = {
         gdacsPage2: 'GDACS (page 2)',
         emsc: 'EMSC (local quakes)',
       },
+      codeHeading: 'Code',
+      codeText: (link) => `This app is open source: ${link}.`,
     },
     panel: {
       type: 'Type', country: 'Country', from: 'From', to: 'To', severity: 'Severity',
@@ -997,6 +1001,8 @@ function renderHelpPanel() {
     <p>${t.help.apiStatusIntro}</p>
     <button id="api-status-check-btn" class="help-check-btn">${t.help.apiStatusCheckBtn}</button>
     <div id="api-status-results"></div>
+    <h3>${t.help.codeHeading}</h3>
+    <p>${t.help.codeText('<a href="https://github.com/rzazo24/disaster-watch" target="_blank" rel="noopener">GitHub</a>')}</p>
   `;
   // help-body's innerHTML (including this button) is rebuilt from scratch every time this
   // function runs — including on a plain language toggle while help is already open — so
