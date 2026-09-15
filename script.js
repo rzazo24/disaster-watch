@@ -75,25 +75,44 @@ function buildUrl(types, levels, pageNumber) {
   return `https://www.gdacs.org/gdacsapi/api/events/geteventlist/SEARCH?${params.toString()}`;
 }
 
+function fetchPage(page) {
+  return fetch(buildUrl(EVENT_TYPES, ['green', 'orange', 'red'], page)).then((res) => {
+    if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { httpStatus: res.status });
+    return res.json();
+  });
+}
+
+const PAGE1_RETRY_DELAY_MS = 1500;
+
 async function fetchAllFeatures() {
   // All MAX_PAGES requests fire at once rather than awaiting each in turn — sequential
   // pagination made total load time MAX_PAGES times a single request's latency. Firing
   // them in parallel costs a little unused bandwidth on the pages that turn out to be
   // past the current-event boundary, but wall-clock time drops to roughly one round trip.
   const results = await Promise.allSettled(
-    Array.from({ length: MAX_PAGES }, (_, i) => i + 1).map((page) =>
-      fetch(buildUrl(EVENT_TYPES, ['green', 'orange', 'red'], page)).then((res) => {
-        if (!res.ok) throw Object.assign(new Error(`HTTP ${res.status}`), { httpStatus: res.status });
-        return res.json();
-      })
-    )
+    Array.from({ length: MAX_PAGES }, (_, i) => i + 1).map((page) => fetchPage(page))
   );
+
+  // Page 1 failing is the only fatal case below — but a `fetch()` rejection with no
+  // httpStatus (a plain network-level failure) looks identical whether it's a genuine CORS
+  // block or just a transient blip (a dropped connection, a momentarily slow/erroring
+  // GDACS response — already documented as something that happens to this exact endpoint).
+  // A real CORS policy block would fail every single request, not intermittently, so one
+  // quick retry here filters out the far more common transient case before ever surfacing
+  // an error to the user.
+  if (results[0].status === 'rejected') {
+    await new Promise((resolve) => setTimeout(resolve, PAGE1_RETRY_DELAY_MS));
+    results[0] = await fetchPage(1).then(
+      (value) => ({ status: 'fulfilled', value }),
+      (reason) => ({ status: 'rejected', reason })
+    );
+  }
 
   let all = [];
   for (let i = 0; i < results.length; i++) {
     const result = results[i];
     if (result.status === 'rejected') {
-      if (i === 0) throw result.reason; // page 1 failing is the only fatal case
+      if (i === 0) throw result.reason; // still failing after the retry above is the only fatal case
       console.error(`GDACS page ${i + 1} failed — using what was already fetched.`, result.reason);
       break;
     }
@@ -192,9 +211,12 @@ const STRINGS = {
     },
     errors: {
       http: (status) => `Error al obtener datos de GDACS (HTTP ${status}).`,
-      cors: 'No se pudo conectar con la API de GDACS. Si ves este error de forma persistente, ' +
-        'es probable que el endpoint no permita peticiones directas desde el navegador (CORS) ' +
-        'y haga falta un pequeño proxy.',
+      // GDACS is confirmed CORS-open (Access-Control-Allow-Origin: *) — a real policy block
+      // would fail every single request, not intermittently, so a rejection reaching here
+      // (after fetchAllFeatures() already retried page 1 once) is almost always a
+      // transient network/server blip, not an actual CORS problem needing a proxy.
+      network: 'No se pudo conectar con la API de GDACS. Probablemente sea un problema temporal ' +
+        'de red o del servidor — se reintentará automáticamente en el próximo refresco.',
       geoUnsupported: 'Tu navegador no admite geolocalización.',
       geoDenied: 'No se pudo obtener tu ubicación. Revisa los permisos de localización del navegador.',
     },
@@ -252,8 +274,8 @@ const STRINGS = {
     },
     errors: {
       http: (status) => `Error fetching data from GDACS (HTTP ${status}).`,
-      cors: "Couldn't connect to the GDACS API. If this keeps happening, the endpoint is probably " +
-        'blocking direct browser requests (CORS) and this would need a small proxy.',
+      network: "Couldn't connect to the GDACS API. This is likely a temporary network or " +
+        "server issue — it'll retry automatically on the next refresh.",
       geoUnsupported: "Your browser doesn't support geolocation.",
       geoDenied: "Couldn't get your location. Check the browser's location permission.",
     },
@@ -987,9 +1009,11 @@ async function fetchEvents() {
     renderEvents(currentEventSet());
     hideError();
   } catch (err) {
-    // A TypeError from fetch() with no other detail is the classic CORS-block signature in browsers;
-    // an HTTP error on page 1 (the only one that aborts the whole fetch) carries `httpStatus`.
-    showError(err.httpStatus ? STRINGS[lang].errors.http(err.httpStatus) : STRINGS[lang].errors.cors);
+    // A bare TypeError from fetch() (no httpStatus) reaching here already survived
+    // fetchAllFeatures()'s own one-retry — see errors.network's comment for why that's
+    // treated as a transient network/server issue rather than an actual CORS block.
+    // An HTTP error on page 1 (the only one that aborts the whole fetch) carries `httpStatus`.
+    showError(err.httpStatus ? STRINGS[lang].errors.http(err.httpStatus) : STRINGS[lang].errors.network);
     console.error(err);
   } finally {
     setLoading(false);
