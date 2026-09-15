@@ -259,7 +259,7 @@ html, body {
   pointer-events: none;
 }
 
-#panel-close {
+#panel-close, #help-close {
   position: absolute;
   top: 8px;
   right: 10px;
@@ -270,7 +270,7 @@ html, body {
   cursor: pointer;
   line-height: 1;
 }
-#panel-close:hover { color: var(--text); }
+#panel-close:hover, #help-close:hover { color: var(--text); }
 
 .panel-title {
   font-size: 15px;
