@@ -101,7 +101,10 @@ publicados como repos independientes a modo de portfolio.
   de un evento GDACS. Se cubren la península, Baleares y Canarias, con datos de los
   últimos 7 días. Los de magnitud 3,5 o superior —el umbral aproximado a partir del cual
   un terremoto suele notarse— pulsan en el mapa para distinguirlos del resto, sin cambiar
-  de color (esa distinción es solo de magnitud, no la evaluación de impacto de GDACS).
+  de color (esa distinción es solo de magnitud, no la evaluación de impacto de GDACS). Los
+  ocurridos en las últimas 6 horas tienen además un borde blanco —una ventana más corta que
+  las 24h de los eventos GDACS "recientes", porque esta capa ya es de por sí una ventana de
+  7 días, así que casi todo en ella es ya reciente en sentido amplio.
 
 - El botón ⌖, junto al control de zoom, centra el mapa en la ubicación actual del
   navegador (vía la Geolocation API) y marca el punto con un círculo azul y su radio

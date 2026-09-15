@@ -20,8 +20,12 @@ const MAX_PAGES = 5; // hard safety cap (500 events) in case that boundary is ev
 // events only for now; EMSC's local quakes already use this pulse for magnitude, and
 // reusing it for a second, different meaning there would be ambiguous.
 const RECENT_HOURS = 24;
-function isRecent(fromDate) {
-  return !!fromDate && (Date.now() - new Date(fromDate).getTime()) < RECENT_HOURS * 3600 * 1000;
+// `hours` defaults to RECENT_HOURS (GDACS's own window) but takes an explicit override for
+// EMSC's local quakes below — that layer only ever covers a 7-day rolling window to begin
+// with (EMSC_DAYS), so "recent" at 24h would already cover a large, unremarkable chunk of
+// it; a shorter, separate window is what actually singles anything out there.
+function isRecent(dateStr, hours = RECENT_HOURS) {
+  return !!dateStr && (Date.now() - new Date(dateStr).getTime()) < hours * 3600 * 1000;
 }
 
 // ---- Supplementary Spain earthquake layer (EMSC) ----
@@ -54,6 +58,13 @@ const EMSC_MAX_MAG = 4.5;
 // quakes are more likely to matter to someone, via a pulse rather than a color change —
 // red/orange/green stays reserved for GDACS's own assessed events.
 const EMSC_NOTABLE_MAG = 3.5;
+// A second, independent axis from EMSC_NOTABLE_MAG — how big vs. how new. Can't reuse
+// pulse-glow (already local-quake's "notable" indicator) for this without making one
+// animation mean two different things on the same violet marker, so "just happened" gets
+// its own signal: a bright white border instead of the box-shadow pulse. A short 6h window,
+// not RECENT_HOURS's 24h — this layer is already a 7-day rolling window (EMSC_DAYS), so 24h
+// would flag a large, unremarkable fraction of it; 6h is what actually stands out here.
+const EMSC_JUST_HAPPENED_HOURS = 6;
 
 function buildUrl(types, levels, pageNumber) {
   const params = new URLSearchParams({
@@ -161,7 +172,7 @@ const STRINGS = {
         'El botón ⌖ junto al zoom centra el mapa en tu ubicación actual (requiere permiso de localización del navegador).',
         'Los marcadores cercanos entre sí se agrupan en un círculo numerado, coloreado por el nivel de alerta más grave del grupo — haz clic o zoom para separarlos.',
         'Los eventos de GDACS iniciados en las últimas 24 horas pulsan en el mapa para destacar lo más nuevo frente a catástrofes que llevan tiempo activas.',
-        'El botón "Sismos locales" añade terremotos menores en España (magnitud hasta 4,5) que GDACS no recoge — desactivado por defecto, en su propio color morado, y no se ven afectados por los filtros Verde/Naranja/Rojo al no tener nivel de alerta de GDACS. Los de magnitud 3,5 o superior pulsan para destacar los que probablemente se hayan sentido.',
+        'El botón "Sismos locales" añade terremotos menores en España (magnitud hasta 4,5) que GDACS no recoge — desactivado por defecto, en su propio color morado, y no se ven afectados por los filtros Verde/Naranja/Rojo al no tener nivel de alerta de GDACS. Los de magnitud 3,5 o superior pulsan para destacar los que probablemente se hayan sentido, y los ocurridos hace menos de 6 horas tienen borde blanco.',
       ],
       dataHeading: 'Datos',
       dataText: (link) => `De ${link} (ONU + Comisión Europea), citado tal y como exigen sus términos de uso: "Global Disaster Awareness and Coordination System, GDACS". La API limita cada consulta a 100 eventos, así que en días de mucha actividad alguno puede quedar fuera. Tiles del mapa de Esri, HERE, Garmin y colaboradores de OpenStreetMap. Los sismos locales (botón "Sismos locales") vienen de EMSC (Euro-Mediterranean Seismological Centre), que agrega datos de redes nacionales como el IGN.`,
@@ -175,8 +186,9 @@ const STRINGS = {
       moreImpact: (n) => `+ ${n} más`,
       location: 'Ubicación', date: 'Fecha', magnitude: 'Magnitud', depth: 'Profundidad',
       localQuakeTitle: 'Sismo local', localQuakeLink: 'Ver ficha en EMSC →',
-      localQuakeNote: (notable) => 'Dato de EMSC, no de GDACS — sin nivel de alerta internacional asociado.' +
-        (notable ? ' Magnitud igual o superior a 3,5: es probable que se haya sentido — por eso pulsa en el mapa.' : ''),
+      localQuakeNote: (notable, justHappened) => 'Dato de EMSC, no de GDACS — sin nivel de alerta internacional asociado.' +
+        (notable ? ' Magnitud igual o superior a 3,5: es probable que se haya sentido — por eso pulsa en el mapa.' : '') +
+        (justHappened ? ' Ocurrió hace menos de 6 horas — por eso tiene el borde blanco.' : ''),
     },
     errors: {
       http: (status) => `Error al obtener datos de GDACS (HTTP ${status}).`,
@@ -220,7 +232,7 @@ const STRINGS = {
         'The ⌖ button next to zoom centers the map on your current location (needs the browser\'s location permission).',
         'Markers close to each other group into a numbered circle, colored by the worst alert level in the group — click it or zoom in to split them apart.',
         'GDACS events that started within the last 24 hours pulse on the map, to make what\'s brand new stand out from disasters that have been ongoing for a while.',
-        'The "Local quakes" button adds minor earthquakes in Spain (up to magnitude 4.5) that GDACS never tracks — off by default, shown in their own purple color, and unaffected by the Green/Orange/Red filters since they have no GDACS alert level. Ones at magnitude 3.5 or higher pulse to flag the ones more likely to have been felt.',
+        'The "Local quakes" button adds minor earthquakes in Spain (up to magnitude 4.5) that GDACS never tracks — off by default, shown in their own purple color, and unaffected by the Green/Orange/Red filters since they have no GDACS alert level. Ones at magnitude 3.5 or higher pulse to flag the ones more likely to have been felt, and ones from the last 6 hours get a white border.',
       ],
       dataHeading: 'Data',
       dataText: (link) => `From ${link} (UN + European Commission), cited as its terms of use require: "Global Disaster Awareness and Coordination System, GDACS". The API caps each query at 100 events, so on high-activity days some may be left out. Map tiles by Esri, HERE, Garmin and OpenStreetMap contributors. Local quakes ("Local quakes" button) come from EMSC (Euro-Mediterranean Seismological Centre), which aggregates national networks such as Spain's IGN.`,
@@ -234,8 +246,9 @@ const STRINGS = {
       moreImpact: (n) => `+ ${n} more`,
       location: 'Location', date: 'Date', magnitude: 'Magnitude', depth: 'Depth',
       localQuakeTitle: 'Local earthquake', localQuakeLink: 'View EMSC record →',
-      localQuakeNote: (notable) => 'EMSC data, not GDACS — no international alert level applies.' +
-        (notable ? ' Magnitude 3.5 or higher: likely to have been felt — that\'s why it pulses on the map.' : ''),
+      localQuakeNote: (notable, justHappened) => 'EMSC data, not GDACS — no international alert level applies.' +
+        (notable ? ' Magnitude 3.5 or higher: likely to have been felt — that\'s why it pulses on the map.' : '') +
+        (justHappened ? ' It happened less than 6 hours ago — that\'s why it has a white border.' : ''),
     },
     errors: {
       http: (status) => `Error fetching data from GDACS (HTTP ${status}).`,
@@ -409,13 +422,16 @@ function clusterIcon(cluster) {
 // scale for events that never went through that assessment at all.
 const localQuakeCluster = L.markerClusterGroup({
   showCoverageOnHover: false,
-  // A cluster hiding even one magnitude-3.5+ quake still pulses — same "worst child wins"
-  // reasoning as clusterIcon() above, just on magnitude instead of GDACS's level.
+  // A cluster hiding even one magnitude-3.5+ or just-happened quake still shows it — same
+  // "worst/most-notable child wins" reasoning as clusterIcon() above, on two independent
+  // axes (magnitude and recency) instead of GDACS's single severity level.
   iconCreateFunction: (cluster) => {
-    const notable = cluster.getAllChildMarkers().some((m) => m.eventMag >= EMSC_NOTABLE_MAG);
+    const children = cluster.getAllChildMarkers();
+    const notable = children.some((m) => m.eventMag >= EMSC_NOTABLE_MAG);
+    const justHappened = children.some((m) => isRecent(m.eventTime, EMSC_JUST_HAPPENED_HOURS));
     return L.divIcon({
       className: '',
-      html: `<div class="disaster-cluster local-quake${notable ? ' notable' : ''}">${cluster.getChildCount()}</div>`,
+      html: `<div class="disaster-cluster local-quake${notable ? ' notable' : ''}${justHappened ? ' just-happened' : ''}">${cluster.getChildCount()}</div>`,
       iconSize: [32, 32],
     });
   },
@@ -591,7 +607,10 @@ function markerHtml(event) {
   // "recent" is the GDACS-only counterpart: local quakes already use this same pulse for
   // magnitude, so recency is deliberately not layered onto them too (see RECENT_HOURS).
   const recentClass = !event.isLocalQuake && isRecent(event.fromDate) ? ' recent' : '';
-  return `<div class="disaster-marker ${colorClass}${notableClass}${recentClass}">${meta.icon}</div>`;
+  // Local quakes get their own, separate "just happened" signal (a border, not the pulse
+  // notable already owns) since a single event can be both big and brand new at once.
+  const justHappenedClass = event.isLocalQuake && isRecent(event.time, EMSC_JUST_HAPPENED_HOURS) ? ' just-happened' : '';
+  return `<div class="disaster-marker ${colorClass}${notableClass}${recentClass}${justHappenedClass}">${meta.icon}</div>`;
 }
 
 // EMSC's flynn_region arrives all-caps ("SPAIN", "STRAIT OF GIBRALTAR") — a light
@@ -752,6 +771,7 @@ function showLocalQuakePanel(event) {
   const panel = document.getElementById('panel');
   const content = document.getElementById('panel-content');
   const notable = event.mag != null && event.mag >= EMSC_NOTABLE_MAG;
+  const justHappened = isRecent(event.time, EMSC_JUST_HAPPENED_HOURS);
   const rows = [
     [t.panel.type, TYPE_META.EQ.label],
     [t.panel.location, escapeHtml(event.region || t.panel.dash)],
@@ -767,7 +787,7 @@ function showLocalQuakePanel(event) {
     <p class="panel-title">${t.panel.localQuakeTitle}</p>
     <span class="panel-badge local-quake">${t.filters.localQuakes}</span>
     ${rows.map(([k, v]) => `<div class="panel-row"><span class="k">${k}</span><span class="v">${v}</span></div>`).join('')}
-    <p class="panel-note">${t.panel.localQuakeNote(notable)}</p>
+    <p class="panel-note">${t.panel.localQuakeNote(notable, justHappened)}</p>
     ${event.reportUrl ? `<a class="panel-link" href="${escapeHtml(event.reportUrl)}" target="_blank" rel="noopener">${t.panel.localQuakeLink}</a>` : ''}
   `;
   panel.classList.remove('hidden');
@@ -944,6 +964,7 @@ function renderEvents(events) {
       marker.eventLevel = event.level; // read by clusterIcon() to color the cluster badge
       marker.eventMag = event.mag; // read by the local-quake cluster icon to flag a notable child
       marker.eventFromDate = event.fromDate; // read by clusterIcon() to flag a recent child
+      marker.eventTime = event.time; // read by the local-quake cluster icon to flag a just-happened child
       marker.on('click', () => showPanel(event));
       cluster.addLayer(marker);
       markers.set(event.id, { marker, event });

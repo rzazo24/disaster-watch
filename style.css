@@ -209,6 +209,16 @@ html, body {
   50% { box-shadow: 0 0 18px 5px currentColor; }
 }
 
+/* "just-happened" (a local quake within EMSC_JUST_HAPPENED_HOURS) is local-quake's second,
+   independent highlight axis — recency, not magnitude — so it can't reuse pulse-glow
+   (already "notable") without conflating the two on the same violet marker. A plain border
+   swap instead: the two combine cleanly on an event that's both big and brand new, since
+   one is a box-shadow animation and the other a static border, not a second animation. */
+.disaster-marker.local-quake.just-happened,
+.disaster-cluster.local-quake.just-happened {
+  border: 3px solid #fff;
+}
+
 .disaster-cluster {
   width: 32px;
   height: 32px;
