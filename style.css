@@ -191,14 +191,20 @@ html, body {
 .disaster-marker.level-red { background: var(--red); color: #2a0000; }
 .disaster-marker.local-quake { background: var(--local); color: #1a0a2e; }
 
-/* "notable" (magnitude >= EMSC_NOTABLE_MAG) pulses rather than changing color — that scale
-   is unrelated to GDACS's own red/orange/green severity, so it stays a variation on
-   local-quake's violet instead of borrowing another level's color. */
+/* Shared pulse mechanic for two independent, non-overlapping meanings: "notable" (local-quake
+   magnitude >= EMSC_NOTABLE_MAG) and "recent" (a GDACS event started within RECENT_HOURS).
+   Each only ever applies to its own marker population (EMSC violet vs GDACS's own
+   green/orange/red), so the same animation reading as "pay attention to this one" never
+   needs a second, conflicting meaning on the same element. Uses currentColor rather than a
+   fixed color so it naturally matches whatever background — violet, green, orange or red —
+   the element already has. */
 .disaster-marker.local-quake.notable,
-.disaster-cluster.local-quake.notable {
-  animation: local-quake-pulse 1.6s ease-in-out infinite;
+.disaster-cluster.local-quake.notable,
+.disaster-marker.recent,
+.disaster-cluster.recent {
+  animation: pulse-glow 1.6s ease-in-out infinite;
 }
-@keyframes local-quake-pulse {
+@keyframes pulse-glow {
   0%, 100% { box-shadow: 0 0 8px currentColor; }
   50% { box-shadow: 0 0 18px 5px currentColor; }
 }

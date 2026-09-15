@@ -12,6 +12,17 @@
 const EVENT_TYPES = ['EQ', 'TC', 'FL', 'VO', 'WF', 'DR'];
 const REFRESH_SECONDS = 300; // events don't change second to second — 5 min is plenty
 const MAX_PAGES = 5; // hard safety cap (500 events) in case that boundary is ever never reached
+// GDACS events range from brand-new to months-old (a drought stays "current" for as long
+// as it's ongoing) with no visual difference between the two today. Flagging ones whose
+// `fromDate` falls in this window — via the same pulse-glow language already used for
+// EMSC's own "notable" quakes, just applied to GDACS's own colored markers instead of
+// local-quake's violet, so the two never collide — surfaces what's actually new. GDACS
+// events only for now; EMSC's local quakes already use this pulse for magnitude, and
+// reusing it for a second, different meaning there would be ambiguous.
+const RECENT_HOURS = 24;
+function isRecent(fromDate) {
+  return !!fromDate && (Date.now() - new Date(fromDate).getTime()) < RECENT_HOURS * 3600 * 1000;
+}
 
 // ---- Supplementary Spain earthquake layer (EMSC) ----
 // GDACS is deliberately global and only reports earthquakes with real potential
@@ -149,6 +160,7 @@ const STRINGS = {
         'El botón ES/EN junto al título cambia el idioma de toda la interfaz.',
         'El botón ⌖ junto al zoom centra el mapa en tu ubicación actual (requiere permiso de localización del navegador).',
         'Los marcadores cercanos entre sí se agrupan en un círculo numerado, coloreado por el nivel de alerta más grave del grupo — haz clic o zoom para separarlos.',
+        'Los eventos de GDACS iniciados en las últimas 24 horas pulsan en el mapa para destacar lo más nuevo frente a catástrofes que llevan tiempo activas.',
         'El botón "Sismos locales" añade terremotos menores en España (magnitud hasta 4,5) que GDACS no recoge — desactivado por defecto, en su propio color morado, y no se ven afectados por los filtros Verde/Naranja/Rojo al no tener nivel de alerta de GDACS. Los de magnitud 3,5 o superior pulsan para destacar los que probablemente se hayan sentido.',
       ],
       dataHeading: 'Datos',
@@ -207,6 +219,7 @@ const STRINGS = {
         'The ES/EN button next to the title switches the whole interface\'s language.',
         'The ⌖ button next to zoom centers the map on your current location (needs the browser\'s location permission).',
         'Markers close to each other group into a numbered circle, colored by the worst alert level in the group — click it or zoom in to split them apart.',
+        'GDACS events that started within the last 24 hours pulse on the map, to make what\'s brand new stand out from disasters that have been ongoing for a while.',
         'The "Local quakes" button adds minor earthquakes in Spain (up to magnitude 4.5) that GDACS never tracks — off by default, shown in their own purple color, and unaffected by the Green/Orange/Red filters since they have no GDACS alert level. Ones at magnitude 3.5 or higher pulse to flag the ones more likely to have been felt.',
       ],
       dataHeading: 'Data',
@@ -372,17 +385,21 @@ const markerCluster = L.markerClusterGroup({
 
 // A cluster's badge is colored by the worst alert level among its children (red beats
 // orange beats green) so a cluster hiding even one red event still reads as urgent,
-// consistent with how individual markers already work.
+// consistent with how individual markers already work. It also pulses if any child
+// started within RECENT_HOURS — same "worst/most-notable child wins" reasoning applied
+// to a second, independent axis (recency, not severity).
 function clusterIcon(cluster) {
   const children = cluster.getAllChildMarkers();
   let level = 'green';
+  let recent = false;
   for (const m of children) {
-    if (m.eventLevel === 'red') { level = 'red'; break; }
-    if (m.eventLevel === 'orange') level = 'orange';
+    if (m.eventLevel === 'red') level = 'red';
+    else if (m.eventLevel === 'orange' && level !== 'red') level = 'orange';
+    if (isRecent(m.eventFromDate)) recent = true;
   }
   return L.divIcon({
     className: '',
-    html: `<div class="disaster-cluster level-${level}">${cluster.getChildCount()}</div>`,
+    html: `<div class="disaster-cluster level-${level}${recent ? ' recent' : ''}">${cluster.getChildCount()}</div>`,
     iconSize: [32, 32],
   });
 }
@@ -571,7 +588,10 @@ function markerHtml(event) {
   // GDACS's own assessed severity, so it stays a variation on local-quake's violet rather
   // than borrowing red/orange/green.
   const notableClass = event.isLocalQuake && event.mag >= EMSC_NOTABLE_MAG ? ' notable' : '';
-  return `<div class="disaster-marker ${colorClass}${notableClass}">${meta.icon}</div>`;
+  // "recent" is the GDACS-only counterpart: local quakes already use this same pulse for
+  // magnitude, so recency is deliberately not layered onto them too (see RECENT_HOURS).
+  const recentClass = !event.isLocalQuake && isRecent(event.fromDate) ? ' recent' : '';
+  return `<div class="disaster-marker ${colorClass}${notableClass}${recentClass}">${meta.icon}</div>`;
 }
 
 // EMSC's flynn_region arrives all-caps ("SPAIN", "STRAIT OF GIBRALTAR") — a light
@@ -923,6 +943,7 @@ function renderEvents(events) {
       const marker = L.marker([event.lat, event.lon], { icon });
       marker.eventLevel = event.level; // read by clusterIcon() to color the cluster badge
       marker.eventMag = event.mag; // read by the local-quake cluster icon to flag a notable child
+      marker.eventFromDate = event.fromDate; // read by clusterIcon() to flag a recent child
       marker.on('click', () => showPanel(event));
       cluster.addLayer(marker);
       markers.set(event.id, { marker, event });

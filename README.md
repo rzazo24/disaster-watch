@@ -49,6 +49,10 @@ publicados como repos independientes a modo de portfolio.
   una mancha sólida de iconos encima unos de otros. Se separan al hacer zoom o al hacer
   clic sobre el propio clúster.
 
+- Los eventos de GDACS iniciados en las últimas 24 horas pulsan en su propio color de
+  alerta, para distinguir lo recién llegado de catástrofes que llevan tiempo activas
+  (una sequía de hace meses y un terremoto de esta mañana ya no se ven exactamente igual).
+
 - Al hacer clic en un marcador se abre un panel lateral con el detalle del evento
   (país, fechas, última actualización, fuente de monitorización —p. ej. NEIC, NOAA,
   GLOFAS—, severidad, puntuación de alerta, enlace al informe oficial). La
