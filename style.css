@@ -287,7 +287,17 @@ html, body {
   z-index: 1001;
   box-shadow: 0 0 20px rgba(0,0,0,0.5);
   transition: transform 0.2s ease, opacity 0.2s ease;
+  /* Firefox scrollbar theming — the equivalent ::-webkit-* rules below cover Chrome/Edge/
+     Safari, since there's no single standard property that styles both. Shared by #panel
+     and #help-panel (both carry the .panel class), so this covers either's scrollbar the
+     same way rather than needing its own rule per panel. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--grid) var(--panel-bg);
 }
+.panel::-webkit-scrollbar { width: 8px; }
+.panel::-webkit-scrollbar-track { background: var(--panel-bg); }
+.panel::-webkit-scrollbar-thumb { background: var(--grid); border-radius: 4px; }
+.panel::-webkit-scrollbar-thumb:hover { background: var(--accent); }
 
 .panel.hidden {
   transform: translateX(20px);
