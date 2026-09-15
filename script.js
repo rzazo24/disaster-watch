@@ -172,6 +172,7 @@ const STRINGS = {
     langAria: 'Cambiar idioma',
     locateAria: 'Centrar en mi ubicación',
     attributionData: 'Datos',
+    update: { available: 'Hay una nueva versión disponible.', reload: 'Recargar' },
     help: {
       title: 'Cómo leer el mapa',
       levelsHeading: 'Niveles de alerta',
@@ -192,6 +193,7 @@ const STRINGS = {
         'Los marcadores cercanos entre sí se agrupan en un círculo numerado, coloreado por el nivel de alerta más grave del grupo — haz clic o zoom para separarlos.',
         'Los eventos de GDACS iniciados en las últimas 24 horas pulsan en el mapa para destacar lo más nuevo frente a catástrofes que llevan tiempo activas.',
         'El botón "Sismos locales" añade terremotos menores en España (magnitud hasta 4,5) que GDACS no recoge — desactivado por defecto, en su propio color morado, y no se ven afectados por los filtros Verde/Naranja/Rojo al no tener nivel de alerta de GDACS. Los de magnitud 3,5 o superior pulsan para destacar los que probablemente se hayan sentido, y los ocurridos hace menos de 6 horas tienen borde blanco.',
+        'Si se publica una versión nueva de la app mientras la tienes abierta, aparece un aviso junto al título con un botón para recargar cuando quieras — nunca se recarga sola.',
       ],
       dataHeading: 'Datos',
       dataText: (link) => `De ${link} (ONU + Comisión Europea), citado tal y como exigen sus términos de uso: "Global Disaster Awareness and Coordination System, GDACS". La API limita cada consulta a 100 eventos, así que en días de mucha actividad alguno puede quedar fuera. Tiles del mapa de Esri, HERE, Garmin y colaboradores de OpenStreetMap. Los sismos locales (botón "Sismos locales") vienen de EMSC (Euro-Mediterranean Seismological Centre), que agrega datos de redes nacionales como el IGN.`,
@@ -235,6 +237,7 @@ const STRINGS = {
     langAria: 'Switch language',
     locateAria: 'Center on my location',
     attributionData: 'Data',
+    update: { available: 'A new version is available.', reload: 'Reload' },
     help: {
       title: 'How to read the map',
       levelsHeading: 'Alert levels',
@@ -255,6 +258,7 @@ const STRINGS = {
         'Markers close to each other group into a numbered circle, colored by the worst alert level in the group — click it or zoom in to split them apart.',
         'GDACS events that started within the last 24 hours pulse on the map, to make what\'s brand new stand out from disasters that have been ongoing for a while.',
         'The "Local quakes" button adds minor earthquakes in Spain (up to magnitude 4.5) that GDACS never tracks — off by default, shown in their own purple color, and unaffected by the Green/Orange/Red filters since they have no GDACS alert level. Ones at magnitude 3.5 or higher pulse to flag the ones more likely to have been felt, and ones from the last 6 hours get a white border.',
+        "If a new version of the app is published while you have it open, a notice appears next to the title with a button to reload whenever you're ready — it never reloads on its own.",
       ],
       dataHeading: 'Data',
       dataText: (link) => `From ${link} (UN + European Commission), cited as its terms of use require: "Global Disaster Awareness and Coordination System, GDACS". The API caps each query at 100 events, so on high-activity days some may be left out. Map tiles by Esri, HERE, Garmin and OpenStreetMap contributors. Local quakes ("Local quakes" button) come from EMSC (Euro-Mediterranean Seismological Centre), which aggregates national networks such as Spain's IGN.`,
@@ -1106,20 +1110,39 @@ scheduleAutoRefresh();
 // (never the GDACS feed itself). Registration failing (e.g. served over plain HTTP in some
 // local setups) is non-fatal, so it's only logged, not surfaced to the user.
 if ('serviceWorker' in navigator) {
+  // Read before register() ever runs: true for a returning visit already controlled by a
+  // previously-installed worker, false for a first-ever visit with no controller yet.
+  // "controllerchange" fires in *both* cases — a first visit's initial clients.claim() also
+  // counts as "acquired a new active worker" even though there was no earlier version to
+  // update from — so this is what tells a genuine version swap apart from that one-time
+  // activation. Confirmed live (Playwright, a fresh browser context with no prior SW
+  // state): controllerchange fires once immediately on a plain first load, which would
+  // otherwise have shown "new version available" to every first-time visitor.
+  let hadControllerAtLoad = !!navigator.serviceWorker.controller;
+
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js').catch((err) => console.error('SW registration failed', err));
   });
 
   // sw.js calls skipWaiting()/clients.claim(), so a newly-deployed version activates and
   // takes control of an already-open tab right away — but that tab is still running the
-  // OLD html/css/js already loaded into memory until it reloads. "controllerchange" fires
-  // exactly when that takeover happens, so reload once to actually pick up the new shell;
-  // otherwise a PWA left open for a while would silently keep running stale code
-  // indefinitely; guarded against firing twice since the event can in principle repeat.
-  let reloadedForUpdate = false;
+  // OLD html/css/js already loaded into memory until it reloads. This used to reload
+  // immediately and silently on every controllerchange — changed after a report that
+  // yanking the page out from under whoever's reading it (mid-panel, mid-scroll) was
+  // jarring; a banner + manual button lets them pick the moment instead. Nothing about the
+  // SW/cache mechanism needed to change for this — the new SW is already active and will
+  // serve the next real reload regardless of when the user clicks, so there's no
+  // correctness reason to force it immediately.
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (reloadedForUpdate) return;
-    reloadedForUpdate = true;
+    if (!hadControllerAtLoad) {
+      // The page's first-ever controller, not a swap from one version to another — nothing
+      // to notify about. Any later controllerchange this session is a real update, though.
+      hadControllerAtLoad = true;
+      return;
+    }
+    document.getElementById('update-banner').classList.remove('hidden');
+  });
+  document.getElementById('update-reload-btn').addEventListener('click', () => {
     window.location.reload();
   });
 

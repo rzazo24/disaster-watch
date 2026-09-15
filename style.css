@@ -144,6 +144,42 @@ html, body {
 
 .local-quake-btn.active { background: var(--local); color: #1a0a2e; border-color: var(--local); }
 
+/* width:100% forces its own row within .topbar's flex-wrap, regardless of how much space
+   the brand/filter rows above it are using — this notice is rare and long-lived (it can
+   stay up for as long as the viewer keeps the tab open), unlike the bottom-center error/
+   loading banners it deliberately avoids sharing space with: both of those can legitimately
+   still appear during that same window (a refresh tick, a fetch error), and stacking a
+   third long-lived banner into that already carefully-tuned corner would revive the exact
+   collision problems documented around #map-attribution. Growing the topbar's own height
+   instead needs no other positioning code to change — #map already sits full-bleed behind
+   the (semi-transparent, blurred) topbar on desktop, and .panel's own top offset already
+   tolerates a topbar that's a little taller than usual. */
+.update-banner {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin-top: 10px;
+  padding: 8px 12px;
+  background: rgba(62, 242, 122, 0.08);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  font-size: 12px;
+}
+#update-reload-btn {
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--accent);
+  color: #06170a;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 10px;
+  cursor: pointer;
+}
+#update-reload-btn:hover { opacity: 0.85; }
+
 #map {
   position: absolute;
   top: 0; left: 0; right: 0; bottom: 0;

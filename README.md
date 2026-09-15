@@ -120,7 +120,8 @@ publicados como repos independientes a modo de portfolio.
   cargue al instante y funcione sin conexión — nunca cachea el feed de GDACS ni los
   tiles del mapa, que siempre se piden en directo. El shell se refresca en segundo
   plano en cada visita, y si detecta una versión nueva mientras la app está abierta,
-  se recarga sola una vez para aplicarla.
+  muestra un aviso con un botón para recargar cuando el usuario quiera, en vez de
+  recargar la página sola de golpe.
 
 ### Limitaciones conocidas
 
