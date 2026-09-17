@@ -190,6 +190,10 @@ Incluye el script de [Vercel Web Analytics](https://vercel.com/docs/analytics)
 para el proyecto en el dashboard de Vercel; en cualquier otro sitio (incluido
 local) es una petición que falla en silencio, sin romper nada.
 
+## Changelog
+
+El historial de cambios de cada versión está en [CHANGELOG.md](CHANGELOG.md).
+
 ## Licencia
 
 Código bajo licencia MIT (ver [LICENSE](LICENSE)). Los datos de GDACS y los tiles
