@@ -25,7 +25,9 @@ self.addEventListener('install', (event) => {
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys()
-      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k))))
+      // Scoped to this app's own cache names, not "anything on the origin that isn't the
+      // current one" — the origin's Cache Storage isn't necessarily ours alone to clear.
+      .then((keys) => Promise.all(keys.filter((k) => k !== CACHE_NAME && k.startsWith('disaster-watch-')).map((k) => caches.delete(k))))
       .then(() => self.clients.claim())
   );
 });
