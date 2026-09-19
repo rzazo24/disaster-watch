@@ -5,6 +5,33 @@ Todos los cambios relevantes de este proyecto se documentan en este fichero.
 El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y este
 proyecto usa [Versionado Semántico](https://semver.org/lang/es/).
 
+## [1.1.2] - 2026-09-19
+
+### Corregido
+
+- Un evento de GDACS que ya tenía marcador en el mapa se quedaba con el nombre, nivel,
+  severidad y puntuación de su primer renderizado para siempre, aunque `fetchEvents()`
+  siguiera trayendo datos nuevos cada 5 minutos — el marcador y el panel nunca se
+  actualizaban, solo su posición. También afectaba al color del badge de los clústeres.
+- Cambiar de idioma con el panel de un evento abierto, si la respuesta de detalle
+  (población/Sendai) tardaba en llegar, podía repintar las filas del panel en el idioma
+  anterior justo después de haberlas traducido.
+- El botón "Todos" dejaba los 6 botones de tipo sin la clase visual de activos aunque
+  los 6 tipos quedaran realmente activos, reintroduciendo el bug de "hace falta un
+  segundo clic para filtrar" ya corregido para el estado inicial de la página.
+- Profundidad y puntuación de alerta no pasaban por el escapado HTML que sí aplica al
+  resto de campos del panel.
+- La caché de detalle/geometría de un evento se indexaba solo por el identificador del
+  evento, no del episodio, pudiendo mezclar datos de dos episodios simultáneos del
+  mismo evento.
+- GDACS puede repetir la misma fila (evento + episodio) en más de una página al
+  paginar; ahora se deduplica antes de guardarla.
+- Cerrar el panel de un evento no limpiaba su identificador guardado, dejando una
+  ventana (sin efecto visible hoy) para que una respuesta tardía reescribiera un panel
+  ya cerrado.
+- El service worker podía borrar cachés de otras apps/herramientas que compartieran el
+  mismo origen al activarse; ahora solo evict a las suyas propias.
+
 ## [1.1.1] - 2026-09-16
 
 ### Corregido
