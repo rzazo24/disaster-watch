@@ -705,8 +705,8 @@ function escapeHtml(str) {
   }[c]));
 }
 
-// Per-event detail cache: eventId -> { population, sendai }, fetched once from the same
-// per-episode endpoint (no reason to hit it twice for two different fields).
+// Per-episode detail cache: event.id (eventid-episodeid) -> { population, sendai }, fetched
+// once from the same per-episode endpoint (no reason to hit it twice for two different fields).
 const detailCache = new Map();
 
 function buildDetailUrl(event) {
@@ -744,13 +744,17 @@ function extractSendai(detail) {
 }
 
 async function fetchEventDetail(event) {
-  if (detailCache.has(event.eventId)) return detailCache.get(event.eventId);
+  // Keyed by event.id (eventid-episodeid), not just eventId: buildDetailUrl() below sends
+  // episodeid, and the endpoint itself is called getepisodedata — it's data for one
+  // episode, not for the event as a whole. Keying by eventId alone would let a second,
+  // simultaneous episode of the same eventid reuse the first episode's cached detail.
+  if (detailCache.has(event.id)) return detailCache.get(event.id);
   try {
     const res = await fetch(buildDetailUrl(event));
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     const result = { population: extractPopulation(data), sendai: extractSendai(data) };
-    detailCache.set(event.eventId, result);
+    detailCache.set(event.id, result);
     return result;
   } catch (err) {
     console.error('Failed to fetch event detail', event.eventId, err);
@@ -760,7 +764,7 @@ async function fetchEventDetail(event) {
 
 // ---- Event footprint (track lines, uncertainty cones, flood/shake extent polygons) ----
 const LEVEL_COLORS = { green: '#3ef27a', orange: '#ffb347', red: '#ff5d5d' };
-const geometryCache = new Map(); // eventId -> filtered GeoJSON FeatureCollection, or null
+const geometryCache = new Map(); // event.id (eventid-episodeid) -> filtered GeoJSON FeatureCollection, or null
 
 function styleGeometryFeature(feature, event) {
   const cls = (feature.properties && feature.properties.Class) || '';
@@ -776,7 +780,9 @@ function styleGeometryFeature(feature, event) {
 
 async function fetchEventGeometry(event) {
   if (!event.geometryUrl) return null;
-  if (geometryCache.has(event.eventId)) return geometryCache.get(event.eventId);
+  // Same per-episode reasoning as detailCache above — event.geometryUrl is itself built
+  // from eventid+episodeid, so the cache is keyed the same way.
+  if (geometryCache.has(event.id)) return geometryCache.get(event.id);
   try {
     const res = await fetch(event.geometryUrl);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -788,7 +794,7 @@ async function fetchEventGeometry(event) {
       return f.geometry && f.geometry.type !== 'Point' && !cls.includes('Global');
     });
     const result = features.length ? { type: 'FeatureCollection', features } : null;
-    geometryCache.set(event.eventId, result);
+    geometryCache.set(event.id, result);
     return result;
   } catch (err) {
     console.error('Failed to fetch event geometry', event.eventId, err);
@@ -831,7 +837,7 @@ function showLocalQuakePanel(event) {
     [t.panel.location, escapeHtml(event.region || t.panel.dash)],
     [t.panel.date, event.time ? new Date(event.time).toLocaleString(t.locale) : t.panel.dash],
     [t.panel.magnitude, event.mag != null ? `${event.mag.toFixed(1)} ${(event.magType || '').toUpperCase()}`.trim() : t.panel.dash],
-    [t.panel.depth, event.depth != null ? `${event.depth} km` : t.panel.dash],
+    [t.panel.depth, event.depth != null ? `${escapeHtml(event.depth)} km` : t.panel.dash],
     [t.panel.source, escapeHtml(event.source || 'EMSC')],
   ];
   clearGeometryLayer();
@@ -866,7 +872,7 @@ function showPanel(event) {
       [t.panel.source, escapeHtml(event.source || t.panel.dash)],
       [t.panel.severity, escapeHtml(event.severity || t.panel.dash)],
       [t.panel.population, populationText],
-      [t.panel.score, event.score !== null && event.score !== undefined ? event.score : t.panel.dash],
+      [t.panel.score, event.score !== null && event.score !== undefined ? escapeHtml(event.score) : t.panel.dash],
     ];
     content.innerHTML = `
       <p class="panel-title">${escapeHtml(event.name || meta.label)}</p>
@@ -889,8 +895,15 @@ function showPanel(event) {
   render(t.panel.loadingPop, null);
   panel.classList.remove('hidden');
 
+  const renderLang = lang; // the language `render` above was built with
   fetchEventDetail(event).then(({ population, sendai }) => {
     if (panel.dataset.eventId !== event.id) return; // user already selected a different event
+    // Toggling language while this fetch is in flight calls showPanel() again (see
+    // applyLanguage()), which creates a *second* render()/fetch pair for the same event —
+    // the id guard above doesn't catch that, since it's still the same event.id. Without
+    // this, whichever fetch resolves last wins, and a slow first response can repaint the
+    // already-retranslated panel back into the language it was in when it was requested.
+    if (lang !== renderLang) return;
     render(
       population
         ? `${Number(population.value).toLocaleString(t.locale)}${population.note ? ' — ' + escapeHtml(population.note) : ''}`
@@ -904,6 +917,10 @@ function showPanel(event) {
 
 function hideEventPanel() {
   document.getElementById('panel').classList.add('hidden');
+  // Without this, a detail/geometry fetch still in flight for the event that was just
+  // closed would pass showPanel()'s `panel.dataset.eventId !== event.id` guard (it never
+  // stopped matching) and rewrite an already-closed panel's content once it resolves.
+  document.getElementById('panel').dataset.eventId = '';
   clearGeometryLayer();
 }
 
@@ -1088,20 +1105,42 @@ function renderEvents(events) {
     if (event.level && !activeLevels.has(event.level)) return;
 
     seen.add(event.id);
-    const icon = L.divIcon({ className: '', html: markerHtml(event), iconSize: [22, 22], iconAnchor: [11, 11] });
+    const html = markerHtml(event);
     const cluster = event.isLocalQuake ? localQuakeCluster : markerCluster;
 
     if (markers.has(event.id)) {
-      markers.get(event.id).marker.setLatLng([event.lat, event.lon]);
+      const entry = markers.get(event.id);
+      entry.marker.setLatLng([event.lat, event.lon]);
+      // Always take the freshest event object, even when nothing below repaints the icon —
+      // without this, an id that already has a marker (the common case: a drought or fire
+      // can stay "current" for months) kept showing whatever name/severity/score it had on
+      // its *first* render, in both the panel and (via the click handler below) forever
+      // after, no matter how many times fetchEvents() actually refreshed the data.
+      entry.event = event;
+      if (html !== entry.html) {
+        // Only touch the DOM (setIcon recreates the marker's element) when the rendered
+        // markup actually changed — level, magnitude, or a recency/just-happened flag
+        // flipping (those are time-based, so they can change even with identical event
+        // data). Guarding this avoids repainting every one of the ~350 markers on every
+        // 5-minute refresh just to redraw the ones that look exactly the same.
+        entry.html = html;
+        entry.marker.setIcon(L.divIcon({ className: '', html, iconSize: [22, 22], iconAnchor: [11, 11] }));
+        entry.marker.eventLevel = event.level; // read by clusterIcon() to color the cluster badge
+        entry.marker.eventMag = event.mag; // read by the local-quake cluster icon to flag a notable child
+        entry.marker.eventFromDate = event.fromDate; // read by clusterIcon() to flag a recent child
+        entry.marker.eventTime = event.time; // read by the local-quake cluster icon to flag a just-happened child
+      }
     } else {
-      const marker = L.marker([event.lat, event.lon], { icon });
+      const marker = L.marker([event.lat, event.lon], { icon: L.divIcon({ className: '', html, iconSize: [22, 22], iconAnchor: [11, 11] }) });
       marker.eventLevel = event.level; // read by clusterIcon() to color the cluster badge
       marker.eventMag = event.mag; // read by the local-quake cluster icon to flag a notable child
       marker.eventFromDate = event.fromDate; // read by clusterIcon() to flag a recent child
       marker.eventTime = event.time; // read by the local-quake cluster icon to flag a just-happened child
-      marker.on('click', () => showPanel(event));
+      // Read the event back from `markers` rather than closing over this render's `event` —
+      // the id-to-event mapping above is exactly what's kept current going forward.
+      marker.on('click', () => showPanel(markers.get(event.id).event));
       cluster.addLayer(marker);
-      markers.set(event.id, { marker, event });
+      markers.set(event.id, { marker, event, html });
     }
   });
 
@@ -1117,7 +1156,12 @@ async function fetchEvents() {
   setLoading(true);
   try {
     const features = await fetchAllFeatures();
-    allEvents = features.map(parseFeature).filter(Boolean);
+    // GDACS repeats the same (eventid, episodeid) row across pages more often than not —
+    // confirmed live: a typical fetch pulls ~400 "current" rows across the 5 pages but only
+    // ~350 distinct ids (dozens of exact duplicates). Deduplicating here rather than relying
+    // on renderEvents()'s own id-keyed Map to sort it out means allEvents (the actual source
+    // of truth other code reads) reflects reality, not an inflated count.
+    allEvents = [...new Map(features.map(parseFeature).filter(Boolean).map((e) => [e.id, e])).values()];
     renderEvents(currentEventSet());
     hideError();
   } catch (err) {
@@ -1152,7 +1196,13 @@ document.querySelectorAll('.filter-btn').forEach((btn) => {
     const type = btn.dataset.type;
     if (type === 'all') {
       activeTypes = new Set(EVENT_TYPES);
-      document.querySelectorAll('.filter-btn').forEach((b) => b.classList.toggle('active', b.dataset.type === 'all'));
+      // All 6 type buttons need `active` too, not just "Todos" — every type is logically
+      // on, and the initial state in index.html already shows it that way (see CLAUDE.md:
+      // the active class must match the activeTypes Set). Leaving them unmarked here made
+      // the UI look like "nothing selected" while everything rendered, and the first click
+      // on any type button afterwards only turned its own `active` class on (a no-op on the
+      // already-active Set) instead of actually filtering — a second click was needed.
+      document.querySelectorAll('.filter-btn').forEach((b) => b.classList.add('active'));
     } else {
       document.querySelector('.filter-btn[data-type="all"]').classList.remove('active');
       btn.classList.toggle('active');
